@@ -83,10 +83,12 @@ function PinSlots({
         value={pin}
         onChangeText={onChangePin}
         keyboardType="number-pad"
+        inputMode="numeric"
         secureTextEntry
         maxLength={slots}
         caretHidden
         autoFocus
+        autoComplete="one-time-code"
         importantForAutofill="yes"
         textContentType="oneTimeCode"
         accessibilityLabel="Code PIN"
@@ -420,9 +422,16 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    opacity: 0.02,
+    opacity: 0.01,
     color: 'transparent',
-    fontSize: 1,
+    // ≥ 16px : sinon Safari / Chrome mobile zooment au focus.
+    fontSize: 16,
+    lineHeight: 20,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    padding: 0,
+    margin: 0,
+    textAlign: 'center',
   },
   error: {
     marginTop: 14,

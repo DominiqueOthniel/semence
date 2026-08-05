@@ -711,7 +711,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 14,
     minHeight: TOUCH,
-    fontSize: 17,
+    // ≥ 16px pour éviter le zoom auto navigateur mobile au focus.
+    fontSize: 16,
     fontFamily: fonts.corpsMed,
     color: colors.ink,
   },
