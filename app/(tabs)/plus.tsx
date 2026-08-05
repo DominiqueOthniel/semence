@@ -1,10 +1,20 @@
-import { Alert, ScrollView, Share, StyleSheet, Text } from 'react-native';
+import { Alert, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApp } from '../../src/store/AppContext';
 import { exportBackup, updateSettings } from '../../src/db/database';
 import { DON_LABELS, PROFIL_LABELS } from '../../src/types';
 import { fcfa } from '../../src/lib/money';
-import { Body, Button, Eyebrow, Row, Screen, Section, Title } from '../../src/ui/primitives';
+import {
+  Avatar,
+  Body,
+  Button,
+  Eyebrow,
+  IconBadge,
+  Row,
+  Screen,
+  SoftCard,
+  Title,
+} from '../../src/ui/primitives';
 import { colors, fonts } from '../../src/theme/colors';
 
 export default function PlusScreen() {
@@ -37,19 +47,38 @@ export default function PlusScreen() {
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Eyebrow>Réglages</Eyebrow>
-        <Title>{settings.name || 'Profil'}</Title>
-        <Body>
-          {PROFIL_LABELS[settings.profil]}
-          {settings.profil !== 'aucun' ? ` · ${DON_LABELS[settings.profil]} ${settings.donRate} %` : ''}
-        </Body>
-        <Body style={{ marginTop: 4 }}>
-          Épargne {settings.epargneRate} % · Semence {settings.semenceRate} % · Revenu {fcfa(settings.monthlyIncome)}
-        </Body>
-        <Body style={{ marginTop: 4, marginBottom: 8 }}>Mois budgétaire à partir du {settings.monthStartDay}</Body>
+        <View style={styles.profile}>
+          <Avatar name={settings.name || 'Toi'} size={72} />
+          <View style={{ flex: 1 }}>
+            <Eyebrow>Profil</Eyebrow>
+            <Title style={{ marginBottom: 4 }}>{settings.name || 'Profil'}</Title>
+            <Body>
+              {PROFIL_LABELS[settings.profil]}
+              {settings.profil !== 'aucun' ? ` · ${DON_LABELS[settings.profil]} ${settings.donRate} %` : ''}
+            </Body>
+          </View>
+        </View>
 
-        <Section>
-          <Eyebrow>Dettes & créances</Eyebrow>
+        <SoftCard>
+          <Row
+            label={`Épargne ${settings.epargneRate} %`}
+            value={`Semence ${settings.semenceRate} %`}
+            icon="leaf-outline"
+          />
+          <Row label="Revenu mensuel" value={fcfa(settings.monthlyIncome)} icon="cash-outline" />
+          <Row
+            label="Début de mois"
+            value={`Jour ${settings.monthStartDay}`}
+            icon="calendar-outline"
+            last
+          />
+        </SoftCard>
+
+        <SoftCard>
+          <View style={styles.cardHead}>
+            <IconBadge name="people-outline" />
+            <Eyebrow>Dettes & créances</Eyebrow>
+          </View>
           {debts.length === 0 ? (
             <Body>Aucune dette en cours.</Body>
           ) : (
@@ -59,15 +88,19 @@ export default function PlusScreen() {
                 label={`${d.direction === 'je_dois' ? 'Je dois à' : 'Me doit'} ${d.person}`}
                 value={fcfa(d.remaining)}
                 tone={d.direction === 'je_dois' ? 'rouge' : 'vert'}
+                icon="person-outline"
                 last={i === debts.length - 1}
               />
             ))
           )}
-          <Button label="Ajouter une dette" variant="soft" onPress={() => router.push('/dette')} />
-        </Section>
+          <Button label="Ajouter" variant="soft" icon="add" onPress={() => router.push('/dette')} />
+        </SoftCard>
 
-        <Section>
-          <Eyebrow>Crédits</Eyebrow>
+        <SoftCard>
+          <View style={styles.cardHead}>
+            <IconBadge name="card-outline" bg={colors.rougeWash} color={colors.rouge} />
+            <Eyebrow>Crédits</Eyebrow>
+          </View>
           {credits.length === 0 ? (
             <Body>Aucun crédit enregistré.</Body>
           ) : (
@@ -77,6 +110,7 @@ export default function PlusScreen() {
                 label={`${c.label} · surcoût ${fcfa(c.totalDue - c.received)}`}
                 value={fcfa(c.remaining)}
                 tone="rouge"
+                icon="card-outline"
                 last={i === credits.length - 1}
               />
             ))
@@ -84,11 +118,14 @@ export default function PlusScreen() {
           {creditYear.cost > 0 && (
             <Body style={{ marginTop: 8 }}>Coût cumulé 12 mois : {fcfa(creditYear.cost)}</Body>
           )}
-          <Button label="Ajouter un crédit" variant="soft" onPress={() => router.push('/credit')} />
-        </Section>
+          <Button label="Ajouter un crédit" variant="soft" icon="add" onPress={() => router.push('/credit')} />
+        </SoftCard>
 
-        <Section>
-          <Eyebrow>Objectifs d’épargne</Eyebrow>
+        <SoftCard>
+          <View style={styles.cardHead}>
+            <IconBadge name="flag-outline" bg={colors.ambreWash} color={colors.ambre} />
+            <Eyebrow>Objectifs d’épargne</Eyebrow>
+          </View>
           {goals.length === 0 ? (
             <Body>Aucun objectif.</Body>
           ) : (
@@ -98,20 +135,29 @@ export default function PlusScreen() {
                 label={g.name}
                 value={`${fcfa(g.current)} / ${fcfa(g.target)}`}
                 tone="vert"
+                icon="flag-outline"
                 last={i === goals.length - 1}
               />
             ))
           )}
-          <Button label="Nouvel objectif" variant="soft" onPress={() => router.push('/objectif')} />
-        </Section>
+          <Button label="Nouvel objectif" variant="soft" icon="add" onPress={() => router.push('/objectif')} />
+        </SoftCard>
 
-        <Section last>
-          <Eyebrow>Sécurité & données</Eyebrow>
-          <Button label="Exporter une sauvegarde" onPress={backup} />
-          <Button label="Changer le jour de début de mois" variant="ghost" onPress={changeMonthStart} />
-          <Button label="Verrouiller l’app" variant="ghost" onPress={() => setUnlocked(false)} />
+        <SoftCard style={{ marginBottom: 8 }}>
+          <View style={styles.cardHead}>
+            <IconBadge name="shield-checkmark-outline" />
+            <Eyebrow>Sécurité & données</Eyebrow>
+          </View>
+          <Button label="Exporter une sauvegarde" icon="cloud-download-outline" onPress={backup} />
+          <Button
+            label="Changer le jour de début de mois"
+            variant="ghost"
+            icon="calendar-outline"
+            onPress={changeMonthStart}
+          />
+          <Button label="Verrouiller l’app" variant="ghost" icon="lock-closed-outline" onPress={() => setUnlocked(false)} />
           <Text style={styles.foot}>Semence · V1 · Hors ligne · FCFA</Text>
-        </Section>
+        </SoftCard>
       </ScrollView>
     </Screen>
   );
@@ -119,16 +165,28 @@ export default function PlusScreen() {
 
 const styles = StyleSheet.create({
   scroll: {
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 48,
+  },
+  profile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 18,
+  },
+  cardHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
   },
   foot: {
     textAlign: 'center',
     fontFamily: fonts.corps,
     color: colors.ink3,
     fontSize: 12,
-    letterSpacing: 0.8,
-    marginTop: 28,
+    letterSpacing: 0.6,
+    marginTop: 20,
   },
 });

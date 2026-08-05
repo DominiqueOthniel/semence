@@ -4,14 +4,14 @@
     "slug": "semence",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/brand/marque-semence-or.png",
     "userInterfaceStyle": "light",
     "scheme": "semence",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/brand/marque-semence-or.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F1EADC"
+      "backgroundColor": "#F5F2EC"
     },
     "ios": {
       "supportsTablet": true,
@@ -19,7 +19,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#F1EADC",
+        "backgroundColor": "#F5F2EC",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

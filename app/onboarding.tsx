@@ -7,15 +7,19 @@ import { useApp } from '../src/store/AppContext';
 import { DEFAULT_RATES, DON_LABELS, type Profil } from '../src/types';
 import { fcfa, parseFcfaInput, splitIncome } from '../src/lib/money';
 import {
+  Avatar,
   Body,
   Button,
   Eyebrow,
   Field,
+  IconBadge,
   Screen,
   Segment,
+  SoftCard,
   StepDots,
   Title,
 } from '../src/ui/primitives';
+import { BrandMark } from '../src/ui/BrandLogo';
 import { colors, fonts } from '../src/theme/colors';
 
 export default function OnboardingScreen() {
@@ -88,7 +92,7 @@ export default function OnboardingScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.brand}>SEMENCE</Text>
+          <BrandMark size={42} style={{ marginBottom: 18 }} />
           <StepDots total={3} current={step} />
 
           {step === 0 && (
@@ -96,9 +100,13 @@ export default function OnboardingScreen() {
               <Title>
                 Semer <Text style={styles.em}>avant</Text> de dépenser.
               </Title>
-              <Body style={{ marginBottom: 28 }}>
+              <Body style={{ marginBottom: 24 }}>
                 Quatre enveloppes, un ordre fixe. Configure ton profil en quelques minutes.
               </Body>
+              <View style={styles.previewAvatar}>
+                <Avatar name={name || 'Toi'} size={64} />
+                <Body style={{ marginTop: 8 }}>{name || 'Ton avatar apparaîtra ici'}</Body>
+              </View>
               <Field label="Ton prénom" value={name} onChangeText={setName} placeholder="Jean-Claude" />
               <Field
                 label="Numéro de téléphone"
@@ -112,10 +120,10 @@ export default function OnboardingScreen() {
                 value={profil}
                 onChange={applyProfil}
                 options={[
-                  { value: 'chretien', label: 'Chrétien' },
-                  { value: 'musulman', label: 'Musulman' },
-                  { value: 'solidarite', label: 'Solidarité' },
-                  { value: 'aucun', label: 'Aucun' },
+                  { value: 'chretien', label: 'Chrétien', icon: 'book-outline' },
+                  { value: 'musulman', label: 'Musulman', icon: 'moon-outline' },
+                  { value: 'solidarite', label: 'Solidarité', icon: 'people-outline' },
+                  { value: 'aucun', label: 'Aucun', icon: 'remove-circle-outline' },
                 ]}
               />
               <Body style={{ marginBottom: 20 }}>
@@ -123,7 +131,7 @@ export default function OnboardingScreen() {
                   ? 'La première enveloppe sera désactivée. Le reste ne change pas.'
                   : `Enveloppe « ${DON_LABELS[profil]} » activée.`}
               </Body>
-              <Button label="Continuer" onPress={() => setStep(1)} />
+              <Button label="Continuer" icon="arrow-forward" onPress={() => setStep(1)} />
             </View>
           )}
 
@@ -155,8 +163,11 @@ export default function OnboardingScreen() {
                 placeholder="25"
               />
 
-              <View style={styles.preview}>
-                <Eyebrow>Aperçu</Eyebrow>
+              <SoftCard>
+                <View style={styles.cardHead}>
+                  <IconBadge name="calculator-outline" bg={colors.ambreWash} color={colors.ambre} />
+                  <Eyebrow>Aperçu</Eyebrow>
+                </View>
                 {profil !== 'aucun' && (
                   <Text style={styles.previewLine}>
                     {DON_LABELS[profil]} · {fcfa(split.don)}
@@ -166,10 +177,10 @@ export default function OnboardingScreen() {
                 <Text style={styles.previewLine}>Semence · {fcfa(split.semence)}</Text>
                 <Text style={styles.previewStrong}>Reste pour vivre · {fcfa(split.courant)}</Text>
                 <Text style={styles.previewDay}>soit {fcfa(split.perDay)} / jour</Text>
-              </View>
+              </SoftCard>
 
-              <Button label="Continuer" onPress={() => setStep(2)} />
-              <Button label="Retour" variant="ghost" onPress={() => setStep(0)} />
+              <Button label="Continuer" icon="arrow-forward" onPress={() => setStep(2)} />
+              <Button label="Retour" variant="ghost" icon="arrow-back" onPress={() => setStep(0)} />
             </View>
           )}
 
@@ -179,6 +190,10 @@ export default function OnboardingScreen() {
               <Body style={{ marginBottom: 24 }}>
                 Un code PIN local. Semence fonctionne entièrement hors ligne.
               </Body>
+              <View style={styles.lockVisual}>
+                <Avatar name={name || 'Toi'} size={56} />
+                <IconBadge name="lock-closed" size={44} />
+              </View>
               <Field
                 label="Code PIN"
                 value={pin}
@@ -195,8 +210,13 @@ export default function OnboardingScreen() {
                 secureTextEntry
                 maxLength={8}
               />
-              <Button label={busy ? 'Création…' : 'Ouvrir Semence'} onPress={finish} disabled={busy} />
-              <Button label="Retour" variant="ghost" onPress={() => setStep(1)} />
+              <Button
+                label={busy ? 'Création…' : 'Ouvrir Semence'}
+                icon="leaf-outline"
+                onPress={finish}
+                disabled={busy}
+              />
+              <Button label="Retour" variant="ghost" icon="arrow-back" onPress={() => setStep(1)} />
             </View>
           )}
         </ScrollView>
@@ -207,28 +227,23 @@ export default function OnboardingScreen() {
 
 const styles = StyleSheet.create({
   scroll: {
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 48,
-  },
-  brand: {
-    fontFamily: fonts.corpsSemi,
-    fontSize: 11,
-    letterSpacing: 3,
-    color: colors.or,
-    marginBottom: 20,
   },
   em: {
     fontFamily: fonts.displayItalic,
     color: colors.or,
   },
-  preview: {
-    backgroundColor: colors.surface,
-    borderTopWidth: 2,
-    borderTopColor: colors.or,
-    padding: 18,
-    marginBottom: 20,
-    marginTop: 4,
+  previewAvatar: {
+    alignItems: 'center',
+    marginBottom: 22,
+  },
+  cardHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
   },
   previewLine: {
     fontFamily: fonts.chiffre,
@@ -244,8 +259,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   previewDay: {
-    fontFamily: fonts.corpsMed,
+    fontFamily: fonts.corpsSemi,
     color: colors.or,
     fontSize: 14,
+  },
+  lockVisual: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
+    marginBottom: 22,
   },
 });

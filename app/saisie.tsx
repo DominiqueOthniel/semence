@@ -9,6 +9,8 @@ import { fcfa, parseFcfaInput } from '../src/lib/money';
 import { Body, Button, Chip, Field, Screen, Segment } from '../src/ui/primitives';
 import { colors, fonts } from '../src/theme/colors';
 
+const FAV_ICONS = ['car-outline', 'restaurant-outline', 'phone-portrait-outline', 'cafe-outline'] as const;
+
 export default function SaisieScreen() {
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const isIncome = mode === 'revenu';
@@ -50,13 +52,13 @@ export default function SaisieScreen() {
     router.back();
   }
 
-  const envelopeOptions: { value: EnvelopeKind; label: string }[] = [
+  const envelopeOptions: { value: EnvelopeKind; label: string; icon: 'heart-outline' | 'save-outline' | 'leaf-outline' | 'cart-outline' }[] = [
     ...(settings && settings.profil !== 'aucun'
-      ? [{ value: 'don' as const, label: DON_LABELS[settings.profil] || 'Don' }]
+      ? [{ value: 'don' as const, label: DON_LABELS[settings.profil] || 'Don', icon: 'heart-outline' as const }]
       : []),
-    { value: 'epargne', label: 'Épargne' },
-    { value: 'semence', label: 'Semence' },
-    { value: 'courant', label: 'Courant' },
+    { value: 'epargne', label: 'Épargne', icon: 'save-outline' },
+    { value: 'semence', label: 'Semence', icon: 'leaf-outline' },
+    { value: 'courant', label: 'Courant', icon: 'cart-outline' },
   ];
 
   return (
@@ -76,14 +78,16 @@ export default function SaisieScreen() {
           options={accounts.map((a) => ({
             value: String(a.id),
             label: a.name,
+            icon: 'wallet-outline' as const,
           }))}
         />
 
         {!isIncome && (
           <View style={styles.favs}>
-            {favorites.map((f) => (
+            {favorites.map((f, i) => (
               <Chip
                 key={f.id}
+                icon={FAV_ICONS[i % FAV_ICONS.length]}
                 label={`${f.label} · ${fcfa(f.amount)}`}
                 onPress={() => {
                   setAmount(String(f.amount));
@@ -97,7 +101,11 @@ export default function SaisieScreen() {
         <Field label="Montant (FCFA)" value={amount} onChangeText={setAmount} keyboardType="number-pad" />
         <Field label="Libellé" value={note} onChangeText={setNote} placeholder={isIncome ? 'Salaire' : 'Déjeuner'} />
         <Body style={{ marginBottom: 16 }}>Montants entiers FCFA, sans décimales.</Body>
-        <Button label="Enregistrer" onPress={save} />
+        <Button
+          label="Enregistrer"
+          icon="checkmark-circle-outline"
+          onPress={save}
+        />
       </ScrollView>
     </Screen>
   );
@@ -106,8 +114,8 @@ export default function SaisieScreen() {
 const styles = StyleSheet.create({
   label: {
     fontFamily: fonts.corpsSemi,
-    fontSize: 11,
-    letterSpacing: 1.2,
+    fontSize: 12,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
     color: colors.ink3,
     marginBottom: 8,

@@ -5,8 +5,32 @@ import { useApp } from '../../src/store/AppContext';
 import { createAccount, archiveAccount } from '../../src/db/database';
 import { ACCOUNT_TYPE_LABELS, type AccountType } from '../../src/types';
 import { fcfa } from '../../src/lib/money';
-import { Body, Button, Eyebrow, Field, Screen, Section, Segment, Title } from '../../src/ui/primitives';
+import {
+  Avatar,
+  Body,
+  Button,
+  Eyebrow,
+  Field,
+  IconBadge,
+  Screen,
+  Segment,
+  SoftCard,
+  Title,
+} from '../../src/ui/primitives';
 import { colors, fonts } from '../../src/theme/colors';
+import type { ComponentProps } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+
+type IconName = ComponentProps<typeof Ionicons>['name'];
+
+const TYPE_ICON: Record<AccountType, IconName> = {
+  especes: 'cash-outline',
+  mtn_momo: 'phone-portrait-outline',
+  orange_money: 'phone-portrait-outline',
+  banque: 'business-outline',
+  tontine: 'people-outline',
+  autre: 'ellipse-outline',
+};
 
 export default function ComptesScreen() {
   const router = useRouter();
@@ -43,15 +67,24 @@ export default function ComptesScreen() {
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Eyebrow>Portefeuille</Eyebrow>
-        <Title>Comptes</Title>
-        <Text style={styles.totalLabel}>Solde consolidé</Text>
-        <Text style={styles.total}>{fcfa(position?.liquid ?? 0)}</Text>
-        <Body style={{ marginBottom: 8 }}>Espèces, MoMo, banque : chaque compte a son solde.</Body>
+        <View style={styles.head}>
+          <View>
+            <Eyebrow>Portefeuille</Eyebrow>
+            <Title>Comptes</Title>
+          </View>
+          <IconBadge name="wallet" size={48} />
+        </View>
 
-        <Section>
-          {accounts.map((a, i) => (
-            <View key={a.id} style={[styles.account, i === accounts.length - 1 && { borderBottomWidth: 0 }]}>
+        <SoftCard>
+          <Text style={styles.totalLabel}>Solde consolidé</Text>
+          <Text style={styles.total}>{fcfa(position?.liquid ?? 0)}</Text>
+          <Body>Espèces, MoMo, banque : chaque compte a son solde.</Body>
+        </SoftCard>
+
+        {accounts.map((a) => (
+          <SoftCard key={a.id}>
+            <View style={styles.account}>
+              <Avatar name={a.name} size={44} icon={TYPE_ICON[a.type]} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.accountName}>{a.name}</Text>
                 <Text style={styles.accountType}>{ACCOUNT_TYPE_LABELS[a.type]}</Text>
@@ -63,18 +96,19 @@ export default function ComptesScreen() {
                 </Text>
               </View>
             </View>
-          ))}
-        </Section>
+          </SoftCard>
+        ))}
 
-        <Button label="Transfert entre comptes" onPress={() => router.push('/transfert')} />
+        <Button label="Transfert" icon="swap-horizontal" onPress={() => router.push('/transfert')} />
         <Button
           label={showForm ? 'Masquer' : 'Nouveau compte'}
           variant="ghost"
+          icon={showForm ? 'chevron-up' : 'add'}
           onPress={() => setShowForm((v) => !v)}
         />
 
         {showForm && (
-          <Section last>
+          <SoftCard>
             <Eyebrow>Nouveau</Eyebrow>
             <Field label="Nom" value={name} onChangeText={setName} placeholder="Compte épargne" />
             <Segment
@@ -83,10 +117,11 @@ export default function ComptesScreen() {
               options={(Object.keys(ACCOUNT_TYPE_LABELS) as AccountType[]).map((k) => ({
                 value: k,
                 label: ACCOUNT_TYPE_LABELS[k],
+                icon: TYPE_ICON[k],
               }))}
             />
-            <Button label="Créer" onPress={add} />
-          </Section>
+            <Button label="Créer" icon="checkmark" onPress={add} />
+          </SoftCard>
         )}
       </ScrollView>
     </Screen>
@@ -95,35 +130,37 @@ export default function ComptesScreen() {
 
 const styles = StyleSheet.create({
   scroll: {
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 40,
   },
+  head: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
   totalLabel: {
     fontFamily: fonts.corpsSemi,
-    fontSize: 11,
-    letterSpacing: 1.4,
+    fontSize: 12,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
     color: colors.ink3,
-    marginTop: 8,
   },
   total: {
     fontFamily: fonts.chiffreMed,
-    fontSize: 34,
+    fontSize: 32,
     color: colors.ink,
     marginTop: 4,
     marginBottom: 8,
-    letterSpacing: -0.8,
   },
   account: {
     flexDirection: 'row',
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.rule,
+    alignItems: 'center',
     gap: 12,
   },
   accountName: {
-    fontFamily: fonts.corpsSemi,
+    fontFamily: fonts.corpsBold,
     fontSize: 16,
     color: colors.ink,
   },

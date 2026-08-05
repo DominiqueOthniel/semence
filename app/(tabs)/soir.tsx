@@ -3,7 +3,19 @@ import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../../src/store/AppContext';
 import { addExpense, markEveningDone } from '../../src/db/database';
 import { fcfa } from '../../src/lib/money';
-import { Amount, Body, Button, Chip, Eyebrow, Field, Screen, Title } from '../../src/ui/primitives';
+import {
+  Amount,
+  Avatar,
+  Body,
+  Button,
+  Chip,
+  Eyebrow,
+  Field,
+  IconBadge,
+  Screen,
+  SoftCard,
+  Title,
+} from '../../src/ui/primitives';
 import { colors, fonts } from '../../src/theme/colors';
 
 const VERSETS: Record<string, { text: string; ref: string } | null> = {
@@ -15,6 +27,8 @@ const VERSETS: Record<string, { text: string; ref: string } | null> = {
   solidarite: null,
   aucun: null,
 };
+
+const FAV_ICONS = ['car-outline', 'restaurant-outline', 'phone-portrait-outline', 'cafe-outline'] as const;
 
 export default function SoirScreen() {
   const { settings, accounts, favorites, envelopes, eveningDone, streak, refresh } = useApp();
@@ -45,16 +59,20 @@ export default function SoirScreen() {
   if (eveningDone || doneLocal) {
     return (
       <Screen>
+        <View style={styles.doneHead}>
+          <Avatar name={settings.name || 'Toi'} size={64} />
+          <IconBadge name="checkmark-circle" size={44} />
+        </View>
         <Eyebrow>Rendez-vous du soir</Eyebrow>
         <Title>C’est noté.</Title>
         <Body>
           {streak > 0 ? `${streak} soir${streak > 1 ? 's' : ''} d’affilée.` : 'À demain, même heure.'}
         </Body>
         {verset && (
-          <View style={styles.quote}>
+          <SoftCard style={{ marginTop: 20 }}>
             <Text style={styles.verset}>« {verset.text} »</Text>
             <Text style={styles.ref}>{verset.ref}</Text>
-          </View>
+          </SoftCard>
         )}
       </Screen>
     );
@@ -63,17 +81,25 @@ export default function SoirScreen() {
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Eyebrow>
-          {String(settings.eveningHour).padStart(2, '0')} h {String(settings.eveningMinute).padStart(2, '0')}
-        </Eyebrow>
-        <Title>Qu’as-tu dépensé aujourd’hui ?</Title>
-        <Body style={{ marginBottom: 22 }}>
-          Moins de deux minutes. Les montants habituels d’abord.
-        </Body>
+        <View style={styles.head}>
+          <View>
+            <Eyebrow>
+              {String(settings.eveningHour).padStart(2, '0')} h {String(settings.eveningMinute).padStart(2, '0')}
+            </Eyebrow>
+            <Title>Qu’as-tu dépensé aujourd’hui ?</Title>
+          </View>
+          <Avatar name={settings.name || 'Toi'} size={48} />
+        </View>
+        <Body style={{ marginBottom: 22 }}>Moins de deux minutes. Les montants habituels d’abord.</Body>
 
         <View style={styles.favs}>
-          {favorites.map((f) => (
-            <Chip key={f.id} label={`${f.label} · ${fcfa(f.amount)}`} onPress={() => pickFavorite(f.label, f.amount)} />
+          {favorites.map((f, i) => (
+            <Chip
+              key={f.id}
+              icon={FAV_ICONS[i % FAV_ICONS.length]}
+              label={`${f.label} · ${fcfa(f.amount)}`}
+              onPress={() => pickFavorite(f.label, f.amount)}
+            />
           ))}
         </View>
 
@@ -86,20 +112,23 @@ export default function SoirScreen() {
         />
         <Field label="Note (optionnel)" value={note} onChangeText={setNote} placeholder="Taxi, marché…" />
 
-        <View style={styles.verdict}>
-          <Eyebrow>Après saisie</Eyebrow>
+        <SoftCard>
+          <View style={styles.cardHead}>
+            <IconBadge name="sunny-outline" bg={colors.ambreWash} color={colors.ambre} />
+            <Eyebrow>Après saisie</Eyebrow>
+          </View>
           <Amount large>{fcfa(Math.max(0, envelopes.perDay))}</Amount>
           <Body style={{ marginTop: 6 }}>par jour · {envelopes.daysLeft} jours restants</Body>
-        </View>
+        </SoftCard>
 
         {verset && (
-          <View style={styles.quote}>
+          <SoftCard>
             <Text style={styles.verset}>« {verset.text} »</Text>
             <Text style={styles.ref}>{verset.ref}</Text>
-          </View>
+          </SoftCard>
         )}
 
-        <Button label="Terminer le soir" onPress={finish} />
+        <Button label="Terminer le soir" icon="checkmark-circle-outline" onPress={finish} />
       </ScrollView>
     </Screen>
   );
@@ -107,9 +136,21 @@ export default function SoirScreen() {
 
 const styles = StyleSheet.create({
   scroll: {
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 40,
+  },
+  head: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  doneHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 18,
   },
   favs: {
     flexDirection: 'row',
@@ -117,15 +158,10 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 20,
   },
-  verdict: {
-    paddingVertical: 20,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.ruleFort,
-    marginBottom: 20,
-  },
-  quote: {
-    paddingVertical: 18,
+  cardHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginBottom: 8,
   },
   verset: {
@@ -138,8 +174,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontFamily: fonts.corpsSemi,
     color: colors.ink3,
-    fontSize: 11,
-    letterSpacing: 1,
+    fontSize: 12,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
 });

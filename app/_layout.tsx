@@ -5,16 +5,16 @@ import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   useFonts,
-  LibreBaskerville_400Regular,
-  LibreBaskerville_400Regular_Italic,
-  LibreBaskerville_700Bold,
-} from '@expo-google-fonts/libre-baskerville';
+  Fraunces_500Medium_Italic,
+  Fraunces_600SemiBold,
+  Fraunces_700Bold,
+} from '@expo-google-fonts/fraunces';
 import {
-  SourceSans3_400Regular,
-  SourceSans3_500Medium,
-  SourceSans3_600SemiBold,
-} from '@expo-google-fonts/source-sans-3';
-import { IBMPlexMono_400Regular, IBMPlexMono_500Medium } from '@expo-google-fonts/ibm-plex-mono';
+  Nunito_400Regular,
+  Nunito_500Medium,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+} from '@expo-google-fonts/nunito';
 import { AppProvider, useApp } from '../src/store/AppContext';
 import { colors } from '../src/theme/colors';
 
@@ -66,14 +66,13 @@ function Loading() {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    LibreBaskerville_400Regular,
-    LibreBaskerville_400Regular_Italic,
-    LibreBaskerville_700Bold,
-    SourceSans3_400Regular,
-    SourceSans3_500Medium,
-    SourceSans3_600SemiBold,
-    IBMPlexMono_400Regular,
-    IBMPlexMono_500Medium,
+    Fraunces_500Medium_Italic,
+    Fraunces_600SemiBold,
+    Fraunces_700Bold,
+    Nunito_400Regular,
+    Nunito_500Medium,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
   });
   const [fontTimeout, setFontTimeout] = useState(false);
 
