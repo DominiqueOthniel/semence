@@ -4,37 +4,35 @@ import Svg, { Circle, Line, Polyline, Rect, Text as SvgText } from 'react-native
 import type { Transaction } from '../types';
 import {
   axisTicks,
+  cashflowForPeriod,
   formatAxisFcfa,
-  monthlyCashflow,
   niceAxisMax,
-  type MonthCashflow,
+  periodCaption,
+  type CashflowPeriod,
+  type CashflowPoint,
 } from '../lib/cashflow';
 import { colors, fonts, radius } from '../theme/colors';
-import { Eyebrow } from './primitives';
+import { Eyebrow, Segment } from './primitives';
 import { useLayout } from '../hooks/useLayout';
 
 const REVENU_COLOR = '#2C5F8A';
 const DEPENSE_COLOR = '#E07A2F';
 const PAD = { top: 16, right: 12, bottom: 36, left: 44 };
 
-export function CashflowChart({
-  transactions,
-  year = new Date().getFullYear(),
-}: {
-  transactions: Transaction[];
-  year?: number;
-}) {
+export function CashflowChart({ transactions }: { transactions: Transaction[] }) {
   const { isCompact } = useLayout();
+  const [period, setPeriod] = useState<CashflowPeriod>('annuel');
   const [width, setWidth] = useState(0);
   const height = isCompact ? 220 : 260;
 
-  const series = useMemo(() => monthlyCashflow(transactions, year), [transactions, year]);
+  const series = useMemo(() => cashflowForPeriod(transactions, period), [transactions, period]);
   const maxY = useMemo(
     () => niceAxisMax(series.flatMap((r) => [r.revenus, r.depenses])),
     [series],
   );
   const ticks = useMemo(() => axisTicks(maxY, 6), [maxY]);
   const hasData = series.some((r) => r.revenus > 0 || r.depenses > 0);
+  const caption = periodCaption(period);
 
   function onLayout(e: LayoutChangeEvent) {
     const w = e.nativeEvent.layout.width;
@@ -43,28 +41,56 @@ export function CashflowChart({
 
   const plotW = Math.max(0, width - PAD.left - PAD.right);
   const plotH = Math.max(0, height - PAD.top - PAD.bottom);
+  const denom = Math.max(1, series.length - 1);
 
   const points = (key: 'revenus' | 'depenses') =>
     series
       .map((_row, i) => {
-        const x = PAD.left + (plotW * i) / Math.max(1, series.length - 1);
+        const x = PAD.left + (plotW * i) / denom;
         const y = PAD.top + plotH - (plotH * series[i][key]) / maxY;
         return `${x},${y}`;
       })
       .join(' ');
 
-  const markerAt = (row: MonthCashflow, i: number, key: 'revenus' | 'depenses') => {
-    const x = PAD.left + (plotW * i) / Math.max(1, series.length - 1);
+  const markerAt = (row: CashflowPoint, i: number, key: 'revenus' | 'depenses') => {
+    const x = PAD.left + (plotW * i) / denom;
     const y = PAD.top + plotH - (plotH * row[key]) / maxY;
     return { x, y };
   };
 
+  function showXLabel(i: number) {
+    if (series.length <= 8) return true;
+    if (period === 'mensuel') {
+      if (isCompact) return i === 0 || i === series.length - 1 || (i + 1) % 5 === 0;
+      return i === 0 || i === series.length - 1 || (i + 1) % 3 === 0;
+    }
+    if (isCompact) return i % 2 === 0 || i === series.length - 1;
+    return true;
+  }
+
+  const emptyMsg =
+    period === 'hebdo'
+      ? 'Pas d’opérations sur les 7 derniers jours.'
+      : period === 'mensuel'
+        ? 'Pas encore d’opérations ce mois-ci.'
+        : 'Pas encore d’opérations cette année.';
+
   return (
     <View style={styles.card} onLayout={onLayout}>
       <View style={styles.head}>
-        <Eyebrow>Année {year}</Eyebrow>
+        <Eyebrow>{caption}</Eyebrow>
         <Text style={styles.title}>Évolution revenus & dépenses</Text>
       </View>
+
+      <Segment
+        value={period}
+        onChange={setPeriod}
+        options={[
+          { value: 'hebdo', label: 'Hebdo', icon: 'calendar-outline' },
+          { value: 'mensuel', label: 'Mensuel', icon: 'calendar' },
+          { value: 'annuel', label: 'Annuel', icon: 'stats-chart-outline' },
+        ]}
+      />
 
       <View style={styles.legend}>
         <View style={styles.legendItem}>
@@ -77,11 +103,7 @@ export function CashflowChart({
         </View>
       </View>
 
-      {!hasData ? (
-        <Text style={styles.empty}>
-          Pas encore d’opérations cette année. Les courbes apparaîtront ici.
-        </Text>
-      ) : null}
+      {!hasData ? <Text style={styles.empty}>{emptyMsg}</Text> : null}
 
       {width > 0 ? (
         <Svg width={width} height={height} accessibilityLabel="Courbe revenus et dépenses">
@@ -128,12 +150,11 @@ export function CashflowChart({
           })}
 
           {series.map((row, i) => {
-            const x = PAD.left + (plotW * i) / Math.max(1, series.length - 1);
-            const show = isCompact ? i % 2 === 0 || i === series.length - 1 : true;
-            if (!show) return null;
+            if (!showXLabel(i)) return null;
+            const x = PAD.left + (plotW * i) / denom;
             return (
               <SvgText
-                key={`x-${row.month}`}
+                key={`x-${row.key}`}
                 x={x}
                 y={height - 10}
                 fill={colors.ink3}
@@ -141,7 +162,7 @@ export function CashflowChart({
                 fontFamily={fonts.corps}
                 textAnchor="middle"
               >
-                {isCompact ? row.short : row.label.slice(0, 3)}
+                {period === 'hebdo' ? row.label : row.short}
               </SvgText>
             );
           })}
@@ -166,21 +187,23 @@ export function CashflowChart({
           {series.map((row, i) => {
             const r = markerAt(row, i, 'revenus');
             const d = markerAt(row, i, 'depenses');
+            const showMarker = period !== 'mensuel' || !isCompact || i % 2 === 0;
+            if (!showMarker) return null;
             return (
-              <React.Fragment key={`m-${i}`}>
+              <React.Fragment key={`m-${row.key}`}>
                 <Circle
                   cx={r.x}
                   cy={r.y}
-                  r={4.5}
+                  r={period === 'mensuel' ? 3 : 4.5}
                   fill={REVENU_COLOR}
                   stroke={colors.white}
                   strokeWidth={1.5}
                 />
                 <Rect
-                  x={d.x - 4}
-                  y={d.y - 4}
-                  width={8}
-                  height={8}
+                  x={d.x - (period === 'mensuel' ? 3 : 4)}
+                  y={d.y - (period === 'mensuel' ? 3 : 4)}
+                  width={period === 'mensuel' ? 6 : 8}
+                  height={period === 'mensuel' ? 6 : 8}
                   rx={1}
                   fill={DEPENSE_COLOR}
                   stroke={colors.white}
@@ -207,13 +230,14 @@ const styles = StyleSheet.create({
     borderColor: colors.rule,
   },
   head: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   title: {
     fontFamily: fonts.display,
     fontSize: 20,
     color: colors.or,
     marginTop: 2,
+    marginBottom: 4,
   },
   legend: {
     flexDirection: 'row',

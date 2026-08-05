@@ -31,42 +31,118 @@ export const MONTH_SHORT = [
   'Déc',
 ] as const;
 
-export type MonthCashflow = {
-  month: number;
+export const DAY_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'] as const;
+
+export type CashflowPeriod = 'hebdo' | 'mensuel' | 'annuel';
+
+export type CashflowPoint = {
+  key: string;
   label: string;
   short: string;
   revenus: number;
   depenses: number;
 };
 
-/** Agrège revenus et dépenses par mois civil pour une année. */
-export function monthlyCashflow(transactions: Transaction[], year = new Date().getFullYear()): MonthCashflow[] {
-  const rows: MonthCashflow[] = MONTH_LABELS.map((label, i) => ({
-    month: i,
-    label,
-    short: MONTH_SHORT[i],
-    revenus: 0,
-    depenses: 0,
-  }));
-
-  for (const tx of transactions) {
-    const d = parseTxDate(tx.date);
-    if (!d || d.getFullYear() !== year) continue;
-    const m = d.getMonth();
-    if (tx.type === 'revenu') rows[m].revenus += tx.amount;
-    else if (tx.type === 'depense') rows[m].depenses += tx.amount;
-  }
-
-  return rows;
-}
-
 function parseTxDate(raw: string): Date | null {
   if (!raw) return null;
-  // ISO date YYYY-MM-DD or full ISO
   const day = raw.slice(0, 10);
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
   if (!m) return null;
   return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function isoDay(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function emptyPoint(key: string, label: string, short: string): CashflowPoint {
+  return { key, label, short, revenus: 0, depenses: 0 };
+}
+
+function addTx(point: CashflowPoint, tx: Transaction) {
+  if (tx.type === 'revenu') point.revenus += tx.amount;
+  else if (tx.type === 'depense') point.depenses += tx.amount;
+}
+
+/** 7 derniers jours (aujourd’hui inclus). */
+export function weeklyCashflow(transactions: Transaction[], now = new Date()): CashflowPoint[] {
+  const end = startOfDay(now);
+  const rows: CashflowPoint[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(end);
+    d.setDate(end.getDate() - i);
+    const key = isoDay(d);
+    rows.push(emptyPoint(key, DAY_SHORT[d.getDay()], `${d.getDate()}`));
+  }
+  const index = new Map(rows.map((r, i) => [r.key, i]));
+  for (const tx of transactions) {
+    const d = parseTxDate(tx.date);
+    if (!d) continue;
+    const key = isoDay(d);
+    const i = index.get(key);
+    if (i == null) continue;
+    addTx(rows[i], tx);
+  }
+  return rows;
+}
+
+/** Jours du mois civil en cours. */
+export function monthlyDaysCashflow(transactions: Transaction[], now = new Date()): CashflowPoint[] {
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const rows: CashflowPoint[] = [];
+  for (let day = 1; day <= daysInMonth; day++) {
+    const d = new Date(year, month, day);
+    const key = isoDay(d);
+    rows.push(emptyPoint(key, String(day), String(day)));
+  }
+  const index = new Map(rows.map((r, i) => [r.key, i]));
+  for (const tx of transactions) {
+    const d = parseTxDate(tx.date);
+    if (!d || d.getFullYear() !== year || d.getMonth() !== month) continue;
+    const key = isoDay(d);
+    const i = index.get(key);
+    if (i == null) continue;
+    addTx(rows[i], tx);
+  }
+  return rows;
+}
+
+/** Mois de l’année civile. */
+export function yearlyCashflow(transactions: Transaction[], year = new Date().getFullYear()): CashflowPoint[] {
+  const rows: CashflowPoint[] = MONTH_LABELS.map((label, i) =>
+    emptyPoint(`${year}-${i}`, label, MONTH_SHORT[i]),
+  );
+  for (const tx of transactions) {
+    const d = parseTxDate(tx.date);
+    if (!d || d.getFullYear() !== year) continue;
+    addTx(rows[d.getMonth()], tx);
+  }
+  return rows;
+}
+
+export function cashflowForPeriod(
+  transactions: Transaction[],
+  period: CashflowPeriod,
+  now = new Date(),
+): CashflowPoint[] {
+  if (period === 'hebdo') return weeklyCashflow(transactions, now);
+  if (period === 'mensuel') return monthlyDaysCashflow(transactions, now);
+  return yearlyCashflow(transactions, now.getFullYear());
+}
+
+export function periodCaption(period: CashflowPeriod, now = new Date()): string {
+  if (period === 'hebdo') return '7 derniers jours';
+  if (period === 'mensuel') return MONTH_LABELS[now.getMonth()];
+  return `Année ${now.getFullYear()}`;
 }
 
 export function niceAxisMax(values: number[]): number {

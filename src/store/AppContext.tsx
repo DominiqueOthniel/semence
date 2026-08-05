@@ -69,7 +69,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const [acc, txs, yearTxs, d, c, g, fav, pos, eve, str, cy] = await Promise.all([
         db.listAccounts(),
         db.listTransactions(40),
-        db.listTransactionsForYear(new Date().getFullYear()),
+        db.listAllTransactions(),
         db.listDebts(),
         db.listCredits(),
         db.listGoals(),

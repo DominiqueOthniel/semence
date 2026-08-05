@@ -382,6 +382,12 @@ export async function listTransactions(limit = 50): Promise<Transaction[]> {
     .slice(0, limit);
 }
 
+/** Toutes les transactions (courbes hebdo / mensuel / annuel). */
+export async function listAllTransactions(): Promise<Transaction[]> {
+  const store = await load();
+  return store.transactions.slice();
+}
+
 /** Toutes les transactions d’une année civile (pour les courbes). */
 export async function listTransactionsForYear(year = new Date().getFullYear()): Promise<Transaction[]> {
   const store = await load();
