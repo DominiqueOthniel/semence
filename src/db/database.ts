@@ -382,6 +382,13 @@ export async function listTransactions(limit = 50): Promise<Transaction[]> {
     .slice(0, limit);
 }
 
+/** Toutes les transactions d’une année civile (pour les courbes). */
+export async function listTransactionsForYear(year = new Date().getFullYear()): Promise<Transaction[]> {
+  const store = await load();
+  const prefix = `${year}-`;
+  return store.transactions.filter((t) => t.date.startsWith(prefix));
+}
+
 export async function spentCourantThisMonth(monthStartDay: number): Promise<number> {
   return envelopeSpent('courant', monthStartDay);
 }

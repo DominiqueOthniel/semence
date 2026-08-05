@@ -9,6 +9,7 @@ interface AppState {
   settings: Settings | null;
   accounts: Account[];
   transactions: Transaction[];
+  yearTransactions: Transaction[];
   debts: Debt[];
   credits: Credit[];
   goals: SavingsGoal[];
@@ -43,6 +44,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [yearTransactions, setYearTransactions] = useState<Transaction[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
   const [credits, setCredits] = useState<Credit[]>([]);
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
@@ -64,9 +66,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const [acc, txs, d, c, g, fav, pos, eve, str, cy] = await Promise.all([
+      const [acc, txs, yearTxs, d, c, g, fav, pos, eve, str, cy] = await Promise.all([
         db.listAccounts(),
         db.listTransactions(40),
+        db.listTransactionsForYear(new Date().getFullYear()),
         db.listDebts(),
         db.listCredits(),
         db.listGoals(),
@@ -79,6 +82,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       setAccounts(acc);
       setTransactions(txs);
+      setYearTransactions(yearTxs);
       setDebts(d);
       setCredits(c);
       setGoals(g);
@@ -147,6 +151,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       settings,
       accounts,
       transactions,
+      yearTransactions,
       debts,
       credits,
       goals,
@@ -166,6 +171,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       settings,
       accounts,
       transactions,
+      yearTransactions,
       debts,
       credits,
       goals,

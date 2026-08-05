@@ -20,6 +20,7 @@ import {
   SoftCard,
 } from '../../src/ui/primitives';
 import { BrandMark } from '../../src/ui/BrandLogo';
+import { CashflowChart } from '../../src/ui/CashflowChart';
 import { colors, fonts, radius } from '../../src/theme/colors';
 
 function capitalizeFirst(raw?: string) {
@@ -32,7 +33,8 @@ function capitalizeFirst(raw?: string) {
 export default function HomeScreen() {
   const router = useRouter();
   const { gutter, isCompact, isWide } = useLayout();
-  const { settings, envelopes, position, creditYear, eveningDone, transactions } = useApp();
+  const { settings, envelopes, position, creditYear, eveningDone, transactions, yearTransactions } =
+    useApp();
   if (!settings || !envelopes || !position) return null;
 
   const donLabel = DON_LABELS[settings.profil];
@@ -163,6 +165,8 @@ export default function HomeScreen() {
       </SoftCard>
     ) : null;
 
+  const chartCard = <CashflowChart transactions={yearTransactions} />;
+
   const ctas = (
     <View style={styles.ctaRow}>
       <View style={styles.ctaItem}>
@@ -212,6 +216,7 @@ export default function HomeScreen() {
             {ctas}
           </LinearGradient>
           <View style={[styles.body, { paddingHorizontal: gutter }]}>
+            {chartCard}
             {envelopesCard}
             {positionCard}
             {soirCard}
@@ -261,6 +266,7 @@ export default function HomeScreen() {
             <PageCol>{envelopesCard}</PageCol>
             <PageCol>{positionCard}</PageCol>
           </PageGrid>
+          {chartCard}
           {creditCard}
           {activityCard}
         </ScrollView>
