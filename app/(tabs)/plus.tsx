@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Alert, Share, StyleSheet, Text, View } from 'react-native';
+import { Share, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApp } from '../../src/store/AppContext';
 import { exportBackup, updateSettings } from '../../src/db/database';
 import { DON_LABELS, PROFIL_LABELS } from '../../src/types';
 import { fcfa } from '../../src/lib/money';
+import { notify } from '../../src/lib/notify';
 import {
   Avatar,
   Body,
@@ -15,11 +16,18 @@ import {
   PageGrid,
   Row,
   Screen,
+  Segment,
   SoftCard,
   Title,
 } from '../../src/ui/primitives';
 import { AvatarPicker, type AvatarChoice } from '../../src/ui/AvatarPicker';
 import { colors, fonts } from '../../src/theme/colors';
+
+const MONTH_START_OPTIONS = [
+  { value: '1', label: 'Jour 1', icon: 'calendar-outline' as const },
+  { value: '25', label: 'Jour 25', icon: 'calendar' as const },
+  { value: '28', label: 'Jour 28', icon: 'calendar-outline' as const },
+];
 
 export default function PlusScreen() {
   const router = useRouter();
@@ -27,10 +35,23 @@ export default function PlusScreen() {
   const [editAvatar, setEditAvatar] = useState(false);
   const [draftAvatar, setDraftAvatar] = useState<AvatarChoice | null>(null);
   const [savingAvatar, setSavingAvatar] = useState(false);
+  const [savingMonth, setSavingMonth] = useState(false);
 
   if (!settings) return null;
 
-  const monthStartDay = settings.monthStartDay;
+  const monthKey = String(settings.monthStartDay);
+  const knownMonthStart = MONTH_START_OPTIONS.some((o) => o.value === monthKey);
+  const monthOptions = knownMonthStart
+    ? MONTH_START_OPTIONS
+    : [
+        ...MONTH_START_OPTIONS,
+        {
+          value: monthKey,
+          label: `Jour ${settings.monthStartDay}`,
+          icon: 'calendar-outline' as const,
+        },
+      ];
+
   const avatarValue: AvatarChoice = draftAvatar ?? {
     preset: settings.avatarPreset || 'initials',
     photo: settings.avatarPhoto,
@@ -44,15 +65,24 @@ export default function PlusScreen() {
         title: 'Sauvegarde Semence',
       });
     } catch (e) {
-      Alert.alert('Sauvegarde', String(e));
+      notify('Sauvegarde', String(e));
     }
   }
 
-  async function changeMonthStart() {
-    const next = monthStartDay === 1 ? 25 : monthStartDay === 25 ? 1 : 25;
-    await updateSettings({ monthStartDay: next });
-    await refresh();
-    Alert.alert('Mois budgétaire', `Premier jour réglé sur le ${next}.`);
+  async function setMonthStartDay(raw: string) {
+    const next = Number(raw);
+    if (!Number.isFinite(next) || next < 1 || next > 28) return;
+    if (next === Number(settings!.monthStartDay)) return;
+    setSavingMonth(true);
+    try {
+      await updateSettings({ monthStartDay: next });
+      await refresh();
+      notify('Mois budgétaire', `Premier jour réglé sur le ${next}.`);
+    } catch (e) {
+      notify('Mois budgétaire', String(e));
+    } finally {
+      setSavingMonth(false);
+    }
   }
 
   function openAvatarEditor() {
@@ -75,7 +105,7 @@ export default function PlusScreen() {
       setEditAvatar(false);
       setDraftAvatar(null);
     } catch (e) {
-      Alert.alert('Avatar', String(e));
+      notify('Avatar', String(e));
     } finally {
       setSavingAvatar(false);
     }
@@ -138,11 +168,25 @@ export default function PlusScreen() {
         />
         <Row label="Revenu mensuel" value={fcfa(settings.monthlyIncome)} icon="cash-outline" />
         <Row
-          label="Début de mois"
+          label="Début de mois actuel"
           value={`Jour ${settings.monthStartDay}`}
           icon="calendar-outline"
           last
         />
+        <View style={{ marginTop: 12 }}>
+          <Eyebrow>Changer le début du mois</Eyebrow>
+          <Body style={{ marginBottom: 10 }}>
+            Jour où ton mois budgétaire recommence (salaire, enveloppes).
+          </Body>
+          <Segment
+            value={monthKey}
+            onChange={(v) => {
+              if (!savingMonth) void setMonthStartDay(v);
+            }}
+            options={monthOptions}
+          />
+          {savingMonth ? <Body>Enregistrement…</Body> : null}
+        </View>
       </SoftCard>
 
       <PageGrid>
@@ -224,12 +268,6 @@ export default function PlusScreen() {
               <Eyebrow>Sécurité & données</Eyebrow>
             </View>
             <Button label="Exporter une sauvegarde" icon="cloud-download-outline" onPress={backup} />
-            <Button
-              label="Changer le jour de début de mois"
-              variant="ghost"
-              icon="calendar-outline"
-              onPress={changeMonthStart}
-            />
             <Button
               label="Verrouiller l’app"
               variant="ghost"

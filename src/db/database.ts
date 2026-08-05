@@ -56,10 +56,12 @@ function defaultSettings(): Settings {
 
 function normalizeSettings(raw: Partial<Settings>): Settings {
   const base = defaultSettings();
+  const merged = { ...base, ...raw };
+  const day = Number(merged.monthStartDay);
   return {
-    ...base,
-    ...raw,
-    avatarPreset: typeof raw.avatarPreset === 'string' ? raw.avatarPreset : base.avatarPreset,
+    ...merged,
+    monthStartDay: Number.isFinite(day) ? Math.min(28, Math.max(1, Math.round(day))) : base.monthStartDay,
+    avatarPreset: typeof raw.avatarPreset === 'string' ? raw.avatarPreset : merged.avatarPreset || base.avatarPreset,
     avatarPhoto: typeof raw.avatarPhoto === 'string' ? raw.avatarPhoto : null,
   };
 }

@@ -13,7 +13,7 @@ export function BrandLogo({
   return (
     <Image
       source={logo}
-      style={[{ width: size, height: size * 1.15, resizeMode: 'contain' }, style]}
+      style={[{ width: size, height: size, resizeMode: 'contain' }, style]}
       accessibilityLabel="Logo Semence"
     />
   );

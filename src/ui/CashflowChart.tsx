@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Line, Polyline, Rect, Text as SvgText } from 'react-native-svg';
+import { LayoutChangeEvent, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle, ClipPath, Defs, G, Line, Polyline, Rect, Text as SvgText } from 'react-native-svg';
 import type { Transaction } from '../types';
 import {
   axisTicks,
@@ -9,7 +9,6 @@ import {
   niceAxisMax,
   periodCaption,
   type CashflowPeriod,
-  type CashflowPoint,
 } from '../lib/cashflow';
 import { colors, fonts, radius } from '../theme/colors';
 import { Eyebrow, Segment } from './primitives';
@@ -17,66 +16,214 @@ import { useLayout } from '../hooks/useLayout';
 
 const REVENU_COLOR = '#2C5F8A';
 const DEPENSE_COLOR = '#E07A2F';
-const PAD = { top: 16, right: 12, bottom: 36, left: 44 };
 
 export function CashflowChart({ transactions }: { transactions: Transaction[] }) {
   const { isCompact } = useLayout();
-  const [period, setPeriod] = useState<CashflowPeriod>('annuel');
-  const [width, setWidth] = useState(0);
-  const height = isCompact ? 220 : 260;
+  const [period, setPeriod] = useState<CashflowPeriod>('hebdo');
+  const [boxW, setBoxW] = useState(0);
 
   const series = useMemo(() => cashflowForPeriod(transactions, period), [transactions, period]);
   const maxY = useMemo(
     () => niceAxisMax(series.flatMap((r) => [r.revenus, r.depenses])),
     [series],
   );
-  const ticks = useMemo(() => axisTicks(maxY, 6), [maxY]);
+  const ticks = useMemo(() => axisTicks(maxY, 5), [maxY]);
   const hasData = series.some((r) => r.revenus > 0 || r.depenses > 0);
   const caption = periodCaption(period);
 
-  function onLayout(e: LayoutChangeEvent) {
-    const w = e.nativeEvent.layout.width;
-    if (w > 0 && Math.abs(w - width) > 1) setWidth(w);
-  }
-
-  const plotW = Math.max(0, width - PAD.left - PAD.right);
-  const plotH = Math.max(0, height - PAD.top - PAD.bottom);
-  const denom = Math.max(1, series.length - 1);
-
-  const points = (key: 'revenus' | 'depenses') =>
-    series
-      .map((_row, i) => {
-        const x = PAD.left + (plotW * i) / denom;
-        const y = PAD.top + plotH - (plotH * series[i][key]) / maxY;
-        return `${x},${y}`;
-      })
-      .join(' ');
-
-  const markerAt = (row: CashflowPoint, i: number, key: 'revenus' | 'depenses') => {
-    const x = PAD.left + (plotW * i) / denom;
-    const y = PAD.top + plotH - (plotH * row[key]) / maxY;
-    return { x, y };
+  const pad = {
+    top: 12,
+    right: 10,
+    bottom: period === 'hebdo' ? 44 : 34,
+    left: isCompact ? 40 : 48,
   };
 
+  const pointGap = period === 'mensuel' ? 32 : period === 'hebdo' ? 0 : 0;
+  const minChartW =
+    period === 'mensuel' ? Math.max(series.length * pointGap, boxW || 0) : boxW;
+  const chartW = Math.max(minChartW, boxW);
+  const chartH = isCompact ? 200 : 236;
+  const plotW = Math.max(0, chartW - pad.left - pad.right);
+  const plotH = Math.max(0, chartH - pad.top - pad.bottom);
+  const n = series.length;
+  const edge = Math.min(12, plotW * 0.04);
+
+  function xAt(i: number) {
+    if (n <= 1) return pad.left + plotW / 2;
+    return pad.left + edge + ((plotW - edge * 2) * i) / (n - 1);
+  }
+
+  function yAt(value: number) {
+    return pad.top + plotH - (plotH * value) / maxY;
+  }
+
+  function onLayout(e: LayoutChangeEvent) {
+    const w = Math.floor(e.nativeEvent.layout.width);
+    if (w > 0 && Math.abs(w - boxW) > 1) setBoxW(w);
+  }
+
+  const linePoints = (key: 'revenus' | 'depenses') =>
+    series.map((row, i) => `${xAt(i)},${yAt(row[key])}`).join(' ');
+
   function showXLabel(i: number) {
-    if (series.length <= 8) return true;
-    if (period === 'mensuel') {
-      if (isCompact) return i === 0 || i === series.length - 1 || (i + 1) % 5 === 0;
-      return i === 0 || i === series.length - 1 || (i + 1) % 3 === 0;
-    }
-    if (isCompact) return i % 2 === 0 || i === series.length - 1;
-    return true;
+    if (period === 'hebdo') return true;
+    if (period === 'annuel') return true;
+    if (isCompact) return i === 0 || i === n - 1 || (i + 1) % 5 === 0;
+    return i === 0 || i === n - 1 || (i + 1) % 2 === 0;
   }
 
   const emptyMsg =
     period === 'hebdo'
-      ? 'Pas d’opérations sur les 7 derniers jours.'
+      ? 'Pas d’opérations cette semaine (lundi → dimanche).'
       : period === 'mensuel'
         ? 'Pas encore d’opérations ce mois-ci.'
         : 'Pas encore d’opérations cette année.';
 
+  const chart = boxW > 0 ? (
+    <Svg
+      width={chartW}
+      height={chartH}
+      accessibilityLabel="Courbe revenus et dépenses"
+      style={{ overflow: 'hidden' }}
+    >
+      <Defs>
+        <ClipPath id="plotClip">
+          <Rect x={pad.left} y={pad.top} width={plotW} height={plotH} rx={8} />
+        </ClipPath>
+      </Defs>
+
+      <Rect
+        x={pad.left}
+        y={pad.top}
+        width={plotW}
+        height={plotH}
+        fill={colors.groundDeep}
+        rx={8}
+      />
+
+      {ticks.map((t) => {
+        const y = yAt(t);
+        return (
+          <Line
+            key={`g-${t}`}
+            x1={pad.left}
+            y1={y}
+            x2={pad.left + plotW}
+            y2={y}
+            stroke={colors.ruleFort}
+            strokeWidth={1}
+            strokeDasharray={t === 0 ? undefined : '4 4'}
+          />
+        );
+      })}
+
+      {ticks.map((t) => (
+        <SvgText
+          key={`y-${t}`}
+          x={pad.left - 6}
+          y={yAt(t) + 3}
+          fill={colors.ink3}
+          fontSize={10}
+          fontFamily={fonts.corps}
+          textAnchor="end"
+        >
+          {formatAxisFcfa(t)}
+        </SvgText>
+      ))}
+
+      <G clipPath="url(#plotClip)">
+        <Polyline
+          points={linePoints('revenus')}
+          fill="none"
+          stroke={REVENU_COLOR}
+          strokeWidth={2.25}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        <Polyline
+          points={linePoints('depenses')}
+          fill="none"
+          stroke={DEPENSE_COLOR}
+          strokeWidth={2.25}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      </G>
+
+      {series.map((row, i) => {
+        const showDots = period !== 'mensuel' || !isCompact || i % 2 === 0 || i === n - 1;
+        if (!showDots) return null;
+        const xr = xAt(i);
+        const yr = yAt(row.revenus);
+        const yd = yAt(row.depenses);
+        const r = period === 'mensuel' ? 3 : 4;
+        return (
+          <React.Fragment key={`m-${row.key}`}>
+            <Circle cx={xr} cy={yr} r={r} fill={REVENU_COLOR} stroke={colors.white} strokeWidth={1.5} />
+            <Rect
+              x={xr - r}
+              y={yd - r}
+              width={r * 2}
+              height={r * 2}
+              rx={1}
+              fill={DEPENSE_COLOR}
+              stroke={colors.white}
+              strokeWidth={1.5}
+            />
+          </React.Fragment>
+        );
+      })}
+
+      {series.map((row, i) => {
+        if (!showXLabel(i)) return null;
+        const x = xAt(i);
+        if (period === 'hebdo') {
+          return (
+            <React.Fragment key={`x-${row.key}`}>
+              <SvgText
+                x={x}
+                y={chartH - 22}
+                fill={colors.ink2}
+                fontSize={11}
+                fontFamily={fonts.corpsSemi}
+                textAnchor="middle"
+              >
+                {row.label}
+              </SvgText>
+              <SvgText
+                x={x}
+                y={chartH - 8}
+                fill={colors.ink3}
+                fontSize={10}
+                fontFamily={fonts.corps}
+                textAnchor="middle"
+              >
+                {row.short}
+              </SvgText>
+            </React.Fragment>
+          );
+        }
+        return (
+          <SvgText
+            key={`x-${row.key}`}
+            x={x}
+            y={chartH - 10}
+            fill={colors.ink3}
+            fontSize={10}
+            fontFamily={fonts.corps}
+            textAnchor="middle"
+          >
+            {row.short}
+          </SvgText>
+        );
+      })}
+    </Svg>
+  ) : (
+    <View style={{ height: chartH }} />
+  );
+
   return (
-    <View style={styles.card} onLayout={onLayout}>
+    <View style={styles.card}>
       <View style={styles.head}>
         <Eyebrow>{caption}</Eyebrow>
         <Text style={styles.title}>Évolution revenus & dépenses</Text>
@@ -86,9 +233,9 @@ export function CashflowChart({ transactions }: { transactions: Transaction[] })
         value={period}
         onChange={setPeriod}
         options={[
-          { value: 'hebdo', label: 'Hebdo', icon: 'calendar-outline' },
-          { value: 'mensuel', label: 'Mensuel', icon: 'calendar' },
-          { value: 'annuel', label: 'Annuel', icon: 'stats-chart-outline' },
+          { value: 'hebdo', label: 'Semaine', icon: 'calendar-outline' },
+          { value: 'mensuel', label: 'Mois', icon: 'calendar' },
+          { value: 'annuel', label: 'Année', icon: 'stats-chart-outline' },
         ]}
       />
 
@@ -105,117 +252,20 @@ export function CashflowChart({ transactions }: { transactions: Transaction[] })
 
       {!hasData ? <Text style={styles.empty}>{emptyMsg}</Text> : null}
 
-      {width > 0 ? (
-        <Svg width={width} height={height} accessibilityLabel="Courbe revenus et dépenses">
-          <Rect
-            x={PAD.left}
-            y={PAD.top}
-            width={plotW}
-            height={plotH}
-            fill={colors.groundDeep}
-            rx={8}
-          />
-
-          {ticks.map((t) => {
-            const y = PAD.top + plotH - (plotH * t) / maxY;
-            return (
-              <Line
-                key={`g-${t}`}
-                x1={PAD.left}
-                y1={y}
-                x2={PAD.left + plotW}
-                y2={y}
-                stroke={colors.ruleFort}
-                strokeWidth={1}
-                strokeDasharray={t === 0 ? undefined : '4 4'}
-              />
-            );
-          })}
-
-          {ticks.map((t) => {
-            const y = PAD.top + plotH - (plotH * t) / maxY;
-            return (
-              <SvgText
-                key={`y-${t}`}
-                x={PAD.left - 6}
-                y={y + 3}
-                fill={colors.ink3}
-                fontSize={10}
-                fontFamily={fonts.corps}
-                textAnchor="end"
-              >
-                {formatAxisFcfa(t)}
-              </SvgText>
-            );
-          })}
-
-          {series.map((row, i) => {
-            if (!showXLabel(i)) return null;
-            const x = PAD.left + (plotW * i) / denom;
-            return (
-              <SvgText
-                key={`x-${row.key}`}
-                x={x}
-                y={height - 10}
-                fill={colors.ink3}
-                fontSize={isCompact ? 9 : 10}
-                fontFamily={fonts.corps}
-                textAnchor="middle"
-              >
-                {period === 'hebdo' ? row.label : row.short}
-              </SvgText>
-            );
-          })}
-
-          <Polyline
-            points={points('revenus')}
-            fill="none"
-            stroke={REVENU_COLOR}
-            strokeWidth={2.5}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-          <Polyline
-            points={points('depenses')}
-            fill="none"
-            stroke={DEPENSE_COLOR}
-            strokeWidth={2.5}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-
-          {series.map((row, i) => {
-            const r = markerAt(row, i, 'revenus');
-            const d = markerAt(row, i, 'depenses');
-            const showMarker = period !== 'mensuel' || !isCompact || i % 2 === 0;
-            if (!showMarker) return null;
-            return (
-              <React.Fragment key={`m-${row.key}`}>
-                <Circle
-                  cx={r.x}
-                  cy={r.y}
-                  r={period === 'mensuel' ? 3 : 4.5}
-                  fill={REVENU_COLOR}
-                  stroke={colors.white}
-                  strokeWidth={1.5}
-                />
-                <Rect
-                  x={d.x - (period === 'mensuel' ? 3 : 4)}
-                  y={d.y - (period === 'mensuel' ? 3 : 4)}
-                  width={period === 'mensuel' ? 6 : 8}
-                  height={period === 'mensuel' ? 6 : 8}
-                  rx={1}
-                  fill={DEPENSE_COLOR}
-                  stroke={colors.white}
-                  strokeWidth={1.5}
-                />
-              </React.Fragment>
-            );
-          })}
-        </Svg>
-      ) : (
-        <View style={{ height }} />
-      )}
+      <View style={styles.plotBox} onLayout={onLayout}>
+        {period === 'mensuel' && chartW > boxW + 2 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            bounces={false}
+            contentContainerStyle={{ paddingRight: 4 }}
+          >
+            {chart}
+          </ScrollView>
+        ) : (
+          chart
+        )}
+      </View>
     </View>
   );
 }
@@ -224,17 +274,20 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
-    padding: 16,
+    padding: 14,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.rule,
+    overflow: 'hidden',
+    width: '100%',
+    alignSelf: 'stretch',
   },
   head: {
     marginBottom: 4,
   },
   title: {
     fontFamily: fonts.display,
-    fontSize: 20,
+    fontSize: 18,
     color: colors.or,
     marginTop: 2,
     marginBottom: 4,
@@ -242,8 +295,8 @@ const styles = StyleSheet.create({
   legend: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
-    marginBottom: 8,
+    gap: 14,
+    marginBottom: 6,
   },
   legendItem: {
     flexDirection: 'row',
@@ -272,5 +325,9 @@ const styles = StyleSheet.create({
     color: colors.ink3,
     marginBottom: 8,
     lineHeight: 20,
+  },
+  plotBox: {
+    width: '100%',
+    overflow: 'hidden',
   },
 });

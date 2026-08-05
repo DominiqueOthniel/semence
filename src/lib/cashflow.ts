@@ -31,7 +31,8 @@ export const MONTH_SHORT = [
   'Déc',
 ] as const;
 
-export const DAY_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'] as const;
+/** Ordre calendaire lundi → dimanche. */
+export const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] as const;
 
 export type CashflowPeriod = 'hebdo' | 'mensuel' | 'annuel';
 
@@ -62,6 +63,15 @@ function isoDay(d: Date) {
   return `${y}-${m}-${day}`;
 }
 
+/** Lundi 00:00 de la semaine contenant `now`. */
+export function startOfWeekMonday(now: Date): Date {
+  const d = startOfDay(now);
+  const dow = d.getDay(); // 0 = dimanche … 6 = samedi
+  const daysFromMonday = dow === 0 ? 6 : dow - 1;
+  d.setDate(d.getDate() - daysFromMonday);
+  return d;
+}
+
 function emptyPoint(key: string, label: string, short: string): CashflowPoint {
   return { key, label, short, revenus: 0, depenses: 0 };
 }
@@ -71,22 +81,20 @@ function addTx(point: CashflowPoint, tx: Transaction) {
   else if (tx.type === 'depense') point.depenses += tx.amount;
 }
 
-/** 7 derniers jours (aujourd’hui inclus). */
+/** Semaine calendaire : lundi → dimanche (7 jours fixes). */
 export function weeklyCashflow(transactions: Transaction[], now = new Date()): CashflowPoint[] {
-  const end = startOfDay(now);
+  const monday = startOfWeekMonday(now);
   const rows: CashflowPoint[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(end);
-    d.setDate(end.getDate() - i);
-    const key = isoDay(d);
-    rows.push(emptyPoint(key, DAY_SHORT[d.getDay()], `${d.getDate()}`));
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    rows.push(emptyPoint(isoDay(d), WEEKDAY_LABELS[i], String(d.getDate())));
   }
   const index = new Map(rows.map((r, i) => [r.key, i]));
   for (const tx of transactions) {
     const d = parseTxDate(tx.date);
     if (!d) continue;
-    const key = isoDay(d);
-    const i = index.get(key);
+    const i = index.get(isoDay(d));
     if (i == null) continue;
     addTx(rows[i], tx);
   }
@@ -101,15 +109,13 @@ export function monthlyDaysCashflow(transactions: Transaction[], now = new Date(
   const rows: CashflowPoint[] = [];
   for (let day = 1; day <= daysInMonth; day++) {
     const d = new Date(year, month, day);
-    const key = isoDay(d);
-    rows.push(emptyPoint(key, String(day), String(day)));
+    rows.push(emptyPoint(isoDay(d), String(day), String(day)));
   }
   const index = new Map(rows.map((r, i) => [r.key, i]));
   for (const tx of transactions) {
     const d = parseTxDate(tx.date);
     if (!d || d.getFullYear() !== year || d.getMonth() !== month) continue;
-    const key = isoDay(d);
-    const i = index.get(key);
+    const i = index.get(isoDay(d));
     if (i == null) continue;
     addTx(rows[i], tx);
   }
@@ -140,7 +146,16 @@ export function cashflowForPeriod(
 }
 
 export function periodCaption(period: CashflowPeriod, now = new Date()): string {
-  if (period === 'hebdo') return '7 derniers jours';
+  if (period === 'hebdo') {
+    const mon = startOfWeekMonday(now);
+    const sun = new Date(mon);
+    sun.setDate(mon.getDate() + 6);
+    const sameMonth = mon.getMonth() === sun.getMonth();
+    if (sameMonth) {
+      return `Lun ${mon.getDate()} – Dim ${sun.getDate()} ${MONTH_SHORT[sun.getMonth()]}`;
+    }
+    return `Lun ${mon.getDate()} ${MONTH_SHORT[mon.getMonth()]} – Dim ${sun.getDate()} ${MONTH_SHORT[sun.getMonth()]}`;
+  }
   if (period === 'mensuel') return MONTH_LABELS[now.getMonth()];
   return `Année ${now.getFullYear()}`;
 }
@@ -148,14 +163,14 @@ export function periodCaption(period: CashflowPeriod, now = new Date()): string 
 export function niceAxisMax(values: number[]): number {
   const peak = Math.max(0, ...values);
   if (peak <= 0) return 100_000;
-  const padded = peak * 1.15;
+  const padded = peak * 1.12;
   const mag = Math.pow(10, Math.floor(Math.log10(padded)));
   const norm = padded / mag;
   const step = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
   return Math.ceil(norm / step) * step * mag;
 }
 
-export function axisTicks(max: number, count = 6): number[] {
+export function axisTicks(max: number, count = 5): number[] {
   const ticks: number[] = [];
   for (let i = 0; i < count; i++) {
     ticks.push(Math.round((max * i) / (count - 1)));
@@ -164,7 +179,7 @@ export function axisTicks(max: number, count = 6): number[] {
 }
 
 export function formatAxisFcfa(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)} M`;
-  if (n >= 1000) return `${fcfaShort(Math.round(n / 1000))} k`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (n >= 1000) return `${Math.round(n / 1000)}k`;
   return fcfaShort(n);
 }
