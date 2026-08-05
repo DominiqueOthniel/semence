@@ -8,6 +8,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Image,
   type TextInputProps,
   type ViewStyle,
   type StyleProp,
@@ -17,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { avatarColor, colors, fonts, initials, radius, space } from '../theme/colors';
 import { CONTENT_WIDTH, TOUCH, useLayout } from '../hooks/useLayout';
+import { getAvatarPreset } from '../lib/avatars';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -36,11 +38,70 @@ export function Avatar({
   name,
   size = 44,
   icon,
+  preset,
+  photoUri,
 }: {
   name: string;
   size?: number;
   icon?: IconName;
+  preset?: string | null;
+  photoUri?: string | null;
 }) {
+  if (photoUri) {
+    return (
+      <Image
+        source={{ uri: photoUri }}
+        accessibilityLabel={`Photo de ${name || 'profil'}`}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: colors.rule,
+        }}
+      />
+    );
+  }
+
+  if (icon) {
+    const bg = avatarColor(name || 'Semence');
+    return (
+      <View
+        accessibilityRole="image"
+        accessibilityLabel={`Avatar ${name || 'Semence'}`}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: bg,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons name={icon} size={size * 0.45} color={colors.white} />
+      </View>
+    );
+  }
+
+  const chosen = getAvatarPreset(preset);
+  if (chosen.id !== 'initials') {
+    return (
+      <View
+        accessibilityRole="image"
+        accessibilityLabel={`Avatar ${chosen.label}`}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: chosen.color,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons name={chosen.icon} size={size * 0.48} color={colors.white} />
+      </View>
+    );
+  }
+
   const bg = avatarColor(name || 'Semence');
   return (
     <View
@@ -55,20 +116,16 @@ export function Avatar({
         justifyContent: 'center',
       }}
     >
-      {icon ? (
-        <Ionicons name={icon} size={size * 0.45} color={colors.white} />
-      ) : (
-        <Text
-          style={{
-            fontFamily: fonts.corpsBold,
-            color: colors.white,
-            fontSize: size * 0.34,
-            letterSpacing: 0.5,
-          }}
-        >
-          {initials(name)}
-        </Text>
-      )}
+      <Text
+        style={{
+          fontFamily: fonts.corpsBold,
+          color: colors.white,
+          fontSize: size * 0.34,
+          letterSpacing: 0.5,
+        }}
+      >
+        {initials(name)}
+      </Text>
     </View>
   );
 }
@@ -182,12 +239,12 @@ export function PageGrid({
   children: React.ReactNode;
   style?: ViewStyle;
 }) {
-  const { columns, gutter } = useLayout();
+  const { isWide, gutter } = useLayout();
   return (
     <View
       style={[
         styles.pageGrid,
-        columns > 1 && styles.pageGridWide,
+        isWide && styles.pageGridWide,
         { gap: gutter },
         style,
       ]}
@@ -206,8 +263,8 @@ export function PageCol({
   style?: ViewStyle;
   flex?: number;
 }) {
-  const { columns } = useLayout();
-  return <View style={[{ flex: columns > 1 ? flex : undefined, minWidth: 0 }, style]}>{children}</View>;
+  const { isWide } = useLayout();
+  return <View style={[{ flex: isWide ? flex : undefined, minWidth: 0 }, style]}>{children}</View>;
 }
 
 export function Section({

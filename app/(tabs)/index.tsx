@@ -20,17 +20,25 @@ import {
   SoftCard,
 } from '../../src/ui/primitives';
 import { BrandMark } from '../../src/ui/BrandLogo';
-import { colors, fonts } from '../../src/theme/colors';
+import { colors, fonts, radius } from '../../src/theme/colors';
+
+function capitalizeFirst(raw?: string) {
+  if (!raw) return '';
+  const first = raw.trim().split(/\s+/)[0] || '';
+  if (!first) return '';
+  return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+}
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { gutter, isDesktop } = useLayout();
+  const { gutter, isCompact, isWide } = useLayout();
   const { settings, envelopes, position, creditYear, eveningDone, transactions } = useApp();
   if (!settings || !envelopes || !position) return null;
 
   const donLabel = DON_LABELS[settings.profil];
   const hour = new Date().getHours();
   const salut = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
+  const firstName = capitalizeFirst(settings.name);
 
   const envelopesCard = (
     <SoftCard>
@@ -89,120 +97,174 @@ export default function HomeScreen() {
     </SoftCard>
   );
 
+  const soirCard = !eveningDone ? (
+    <Pressable
+      onPress={() => router.push('/(tabs)/soir')}
+      accessibilityRole="button"
+      accessibilityLabel="Ouvrir le rendez-vous du soir"
+      style={({ pressed }) => [pressed && { opacity: 0.92 }]}
+    >
+      <SoftCard style={styles.soirCard}>
+        <View style={styles.soirRow}>
+          <IconBadge name="moon-outline" bg={colors.ambreWash} color={colors.ambre} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.sectionTitle}>Rendez-vous du soir</Text>
+            <Body>
+              À {String(settings.eveningHour).padStart(2, '0')} h{' '}
+              {String(settings.eveningMinute).padStart(2, '0')} · deux minutes
+            </Body>
+          </View>
+          <Text style={styles.link}>Ouvrir</Text>
+        </View>
+      </SoftCard>
+    </Pressable>
+  ) : null;
+
+  const activityCard = (
+    <SoftCard style={{ marginBottom: 8 }}>
+      <View style={styles.cardHead}>
+        <IconBadge name="time-outline" />
+        <Eyebrow>Activité récente</Eyebrow>
+      </View>
+      {transactions.length === 0 ? (
+        <Body>Aucune opération pour l’instant.</Body>
+      ) : (
+        transactions.slice(0, isWide ? 10 : 6).map((t, i, arr) => (
+          <Row
+            key={t.id}
+            label={t.note || t.type}
+            value={`${t.type === 'revenu' ? '+' : t.type === 'depense' ? '−' : ''}${fcfa(t.amount)}`}
+            tone={t.type === 'revenu' ? 'vert' : t.type === 'depense' ? 'rouge' : 'ink'}
+            icon={
+              t.type === 'revenu'
+                ? 'arrow-down-circle-outline'
+                : t.type === 'transfert'
+                  ? 'swap-horizontal-outline'
+                  : 'arrow-up-circle-outline'
+            }
+            last={i === arr.length - 1}
+          />
+        ))
+      )}
+    </SoftCard>
+  );
+
+  const creditCard =
+    creditYear.count > 0 ? (
+      <SoftCard>
+        <View style={styles.cardHead}>
+          <IconBadge name="alert-circle-outline" bg={colors.rougeWash} color={colors.rouge} />
+          <Eyebrow>Coût des emprunts</Eyebrow>
+        </View>
+        <Amount>{fcfa(creditYear.cost)}</Amount>
+        <Body style={{ marginTop: 6 }}>
+          Surcoût de {creditYear.count} emprunt{creditYear.count > 1 ? 's' : ''} sur 12 mois.
+        </Body>
+      </SoftCard>
+    ) : null;
+
+  const ctas = (
+    <View style={styles.ctaRow}>
+      <View style={styles.ctaItem}>
+        <Button label="Saisir" icon="add-circle-outline" onPress={() => router.push('/saisie')} />
+      </View>
+      <View style={styles.ctaItem}>
+        <Button
+          label="Revenu"
+          icon="arrow-down-circle-outline"
+          variant="ghost"
+          onPress={() => router.push({ pathname: '/saisie', params: { mode: 'revenu' } })}
+        />
+      </View>
+    </View>
+  );
+
+  if (isCompact) {
+    return (
+      <Screen padded={false} maxWidth="app">
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <LinearGradient
+            colors={[colors.groundDeep, colors.ground, colors.ground]}
+            locations={[0, 0.55, 1]}
+            style={[styles.heroMobile, { paddingHorizontal: gutter }]}
+          >
+            <View style={styles.topRow}>
+              <BrandMark size={36} />
+              <Avatar
+                name={settings.name || 'Toi'}
+                size={44}
+                preset={settings.avatarPreset}
+                photoUri={settings.avatarPhoto}
+              />
+            </View>
+            <Text style={styles.hello}>
+              {salut}
+              {firstName ? `, ${firstName}` : ''}.
+            </Text>
+            <Text style={styles.heroLabel}>Reste à vivre aujourd’hui</Text>
+            <Amount large style={styles.heroAmount}>
+              {fcfa(Math.max(0, envelopes.perDay))}
+            </Amount>
+            <Body style={styles.heroMeta}>
+              {envelopes.daysLeft} jour{envelopes.daysLeft > 1 ? 's' : ''} restants · {fcfa(envelopes.resteAVivre)}{' '}
+              de courant
+            </Body>
+            {ctas}
+          </LinearGradient>
+          <View style={[styles.body, { paddingHorizontal: gutter }]}>
+            {envelopesCard}
+            {positionCard}
+            {soirCard}
+            {creditCard}
+            {activityCard}
+          </View>
+        </ScrollView>
+      </Screen>
+    );
+  }
+
   return (
     <Screen padded={false} maxWidth="wide">
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <LinearGradient
-          colors={[colors.groundDeep, colors.ground, colors.ground]}
-          locations={[0, 0.55, 1]}
-          style={[styles.hero, { paddingHorizontal: gutter }]}
-        >
+      <View style={[styles.desktopRow, { paddingHorizontal: gutter, paddingTop: 20, gap: gutter }]}>
+        <View style={styles.desktopHero}>
           <View style={styles.topRow}>
-            <BrandMark size={38} />
-            <Avatar name={settings.name || 'Toi'} size={44} />
+            <Text style={styles.desktopKicker}>Aujourd’hui</Text>
+            <Avatar
+              name={settings.name || 'Toi'}
+              size={44}
+              preset={settings.avatarPreset}
+              photoUri={settings.avatarPhoto}
+            />
           </View>
-
-          <Text style={[styles.hello, isDesktop && styles.helloDesktop]}>
+          <Text style={styles.helloDesktop}>
             {salut}
-            {settings.name ? `, ${settings.name.split(' ')[0]}` : ''}.
+            {firstName ? `, ${firstName}` : ''}.
           </Text>
-          <Text style={styles.heroLabel}>Reste à vivre aujourd’hui</Text>
+          <Text style={styles.heroLabel}>Reste à vivre</Text>
           <Amount large style={styles.heroAmount}>
             {fcfa(Math.max(0, envelopes.perDay))}
           </Amount>
           <Body style={styles.heroMeta}>
-            {envelopes.daysLeft} jour{envelopes.daysLeft > 1 ? 's' : ''} restants · {fcfa(envelopes.resteAVivre)} de
-            courant
+            {envelopes.daysLeft} jour{envelopes.daysLeft > 1 ? 's' : ''} restants
           </Body>
-
-          <View style={[styles.ctaRow, isDesktop && styles.ctaRowDesktop]}>
-            <View style={styles.ctaItem}>
-              <Button label="Saisir" icon="add-circle-outline" onPress={() => router.push('/saisie')} />
-            </View>
-            <View style={styles.ctaItem}>
-              <Button
-                label="Revenu"
-                icon="arrow-down-circle-outline"
-                variant="ghost"
-                onPress={() => router.push({ pathname: '/saisie', params: { mode: 'revenu' } })}
-              />
-            </View>
-          </View>
-        </LinearGradient>
-
-        <View style={[styles.body, { paddingHorizontal: gutter }]}>
-          <PageGrid>
-            <PageCol flex={1.05}>
-              {envelopesCard}
-              {positionCard}
-            </PageCol>
-            <PageCol flex={0.95}>
-              {!eveningDone && (
-                <Pressable
-                  onPress={() => router.push('/(tabs)/soir')}
-                  accessibilityRole="button"
-                  accessibilityLabel="Ouvrir le rendez-vous du soir"
-                  style={({ pressed }) => [pressed && { opacity: 0.92 }]}
-                >
-                  <SoftCard style={styles.soirCard}>
-                    <View style={styles.soirRow}>
-                      <IconBadge name="moon-outline" bg={colors.ambreWash} color={colors.ambre} />
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={styles.sectionTitle}>Rendez-vous du soir</Text>
-                        <Body>
-                          À {String(settings.eveningHour).padStart(2, '0')} h{' '}
-                          {String(settings.eveningMinute).padStart(2, '0')} · deux minutes
-                        </Body>
-                      </View>
-                      <Text style={styles.link}>Ouvrir</Text>
-                    </View>
-                  </SoftCard>
-                </Pressable>
-              )}
-
-              {creditYear.count > 0 && (
-                <SoftCard>
-                  <View style={styles.cardHead}>
-                    <IconBadge name="alert-circle-outline" bg={colors.rougeWash} color={colors.rouge} />
-                    <Eyebrow>Coût des emprunts</Eyebrow>
-                  </View>
-                  <Amount>{fcfa(creditYear.cost)}</Amount>
-                  <Body style={{ marginTop: 6 }}>
-                    Surcoût de {creditYear.count} emprunt{creditYear.count > 1 ? 's' : ''} sur 12 mois.
-                  </Body>
-                </SoftCard>
-              )}
-
-              <SoftCard style={{ marginBottom: 8 }}>
-                <View style={styles.cardHead}>
-                  <IconBadge name="time-outline" />
-                  <Eyebrow>Activité récente</Eyebrow>
-                </View>
-                {transactions.length === 0 ? (
-                  <Body>Aucune opération pour l’instant.</Body>
-                ) : (
-                  transactions.slice(0, isDesktop ? 8 : 6).map((t, i, arr) => (
-                    <Row
-                      key={t.id}
-                      label={t.note || t.type}
-                      value={`${t.type === 'revenu' ? '+' : t.type === 'depense' ? '−' : ''}${fcfa(t.amount)}`}
-                      tone={t.type === 'revenu' ? 'vert' : t.type === 'depense' ? 'rouge' : 'ink'}
-                      icon={
-                        t.type === 'revenu'
-                          ? 'arrow-down-circle-outline'
-                          : t.type === 'transfert'
-                            ? 'swap-horizontal-outline'
-                            : 'arrow-up-circle-outline'
-                      }
-                      last={i === arr.length - 1}
-                    />
-                  ))
-                )}
-              </SoftCard>
-            </PageCol>
-          </PageGrid>
+          <Body style={{ marginBottom: 12 }}>{fcfa(envelopes.resteAVivre)} encore en courant</Body>
+          {ctas}
+          {soirCard}
         </View>
-      </ScrollView>
+
+        <ScrollView
+          style={styles.desktopScroll}
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+        >
+          <PageGrid>
+            <PageCol>{envelopesCard}</PageCol>
+            <PageCol>{positionCard}</PageCol>
+          </PageGrid>
+          {creditCard}
+          {activityCard}
+        </ScrollView>
+      </View>
     </Screen>
   );
 }
@@ -236,9 +298,35 @@ function EnvelopeLine({
 
 const styles = StyleSheet.create({
   scroll: { paddingBottom: 40 },
-  hero: {
+  heroMobile: {
     paddingTop: 8,
     paddingBottom: 28,
+  },
+  desktopRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  desktopHero: {
+    width: 340,
+    maxWidth: '38%',
+    backgroundColor: colors.groundDeep,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.rule,
+    padding: 22,
+    alignSelf: 'flex-start',
+  },
+  desktopScroll: {
+    flex: 1,
+    minWidth: 0,
+  },
+  desktopKicker: {
+    fontFamily: fonts.corpsSemi,
+    fontSize: 12,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.or,
   },
   topRow: {
     flexDirection: 'row',
@@ -255,8 +343,11 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   helloDesktop: {
-    fontSize: 36,
-    lineHeight: 42,
+    fontFamily: fonts.display,
+    fontSize: 32,
+    lineHeight: 40,
+    color: colors.ink,
+    marginBottom: 18,
   },
   heroLabel: {
     fontFamily: fonts.corpsSemi,
@@ -273,14 +364,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 10,
     marginTop: 10,
-  },
-  ctaRowDesktop: {
-    maxWidth: 420,
+    marginBottom: 8,
   },
   ctaItem: {
     flexGrow: 1,
-    flexBasis: 140,
-    minWidth: 140,
+    flexBasis: 120,
+    minWidth: 120,
   },
   body: { paddingTop: 4 },
   cardHead: {
@@ -298,6 +387,7 @@ const styles = StyleSheet.create({
   soirCard: {
     backgroundColor: colors.ambreWash,
     borderColor: '#E8D6AE',
+    marginTop: 8,
   },
   soirRow: {
     flexDirection: 'row',

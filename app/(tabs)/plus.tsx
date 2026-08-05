@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Alert, Share, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApp } from '../../src/store/AppContext';
@@ -17,15 +18,23 @@ import {
   SoftCard,
   Title,
 } from '../../src/ui/primitives';
+import { AvatarPicker, type AvatarChoice } from '../../src/ui/AvatarPicker';
 import { colors, fonts } from '../../src/theme/colors';
 
 export default function PlusScreen() {
   const router = useRouter();
   const { settings, debts, credits, goals, creditYear, refresh, setUnlocked } = useApp();
+  const [editAvatar, setEditAvatar] = useState(false);
+  const [draftAvatar, setDraftAvatar] = useState<AvatarChoice | null>(null);
+  const [savingAvatar, setSavingAvatar] = useState(false);
 
   if (!settings) return null;
 
   const monthStartDay = settings.monthStartDay;
+  const avatarValue: AvatarChoice = draftAvatar ?? {
+    preset: settings.avatarPreset || 'initials',
+    photo: settings.avatarPhoto,
+  };
 
   async function backup() {
     try {
@@ -46,10 +55,41 @@ export default function PlusScreen() {
     Alert.alert('Mois budgétaire', `Premier jour réglé sur le ${next}.`);
   }
 
+  function openAvatarEditor() {
+    setDraftAvatar({
+      preset: settings!.avatarPreset || 'initials',
+      photo: settings!.avatarPhoto,
+    });
+    setEditAvatar(true);
+  }
+
+  async function saveAvatar() {
+    if (!draftAvatar) return;
+    setSavingAvatar(true);
+    try {
+      await updateSettings({
+        avatarPreset: draftAvatar.preset,
+        avatarPhoto: draftAvatar.photo,
+      });
+      await refresh();
+      setEditAvatar(false);
+      setDraftAvatar(null);
+    } catch (e) {
+      Alert.alert('Avatar', String(e));
+    } finally {
+      setSavingAvatar(false);
+    }
+  }
+
   return (
     <Screen maxWidth="wide" scroll>
       <View style={styles.profile}>
-        <Avatar name={settings.name || 'Toi'} size={72} />
+        <Avatar
+          name={settings.name || 'Toi'}
+          size={72}
+          preset={settings.avatarPreset}
+          photoUri={settings.avatarPhoto}
+        />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Eyebrow>Profil</Eyebrow>
           <Title style={{ marginBottom: 4 }}>{settings.name || 'Profil'}</Title>
@@ -57,8 +97,38 @@ export default function PlusScreen() {
             {PROFIL_LABELS[settings.profil]}
             {settings.profil !== 'aucun' ? ` · ${DON_LABELS[settings.profil]} ${settings.donRate} %` : ''}
           </Body>
+          <Button
+            label={editAvatar ? 'Fermer' : 'Changer avatar ou photo'}
+            variant="soft"
+            icon={editAvatar ? 'chevron-up' : 'camera-outline'}
+            compact
+            onPress={() => {
+              if (editAvatar) {
+                setEditAvatar(false);
+                setDraftAvatar(null);
+              } else {
+                openAvatarEditor();
+              }
+            }}
+          />
         </View>
       </View>
+
+      {editAvatar ? (
+        <SoftCard>
+          <AvatarPicker
+            name={settings.name || 'Toi'}
+            value={avatarValue}
+            onChange={setDraftAvatar}
+          />
+          <Button
+            label={savingAvatar ? 'Enregistrement…' : 'Enregistrer le profil'}
+            icon="checkmark-circle-outline"
+            onPress={saveAvatar}
+            disabled={savingAvatar || !draftAvatar}
+          />
+        </SoftCard>
+      ) : null}
 
       <SoftCard>
         <Row

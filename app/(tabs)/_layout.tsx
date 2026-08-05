@@ -1,9 +1,49 @@
-import { Platform } from 'react-native';
-import { Tabs } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Slot, Tabs, usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fonts } from '../../src/theme/colors';
+import { colors, fonts, radius } from '../../src/theme/colors';
 import { TOUCH, useLayout } from '../../src/hooks/useLayout';
+import { BrandMark } from '../../src/ui/BrandLogo';
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const DESKTOP_LINKS: {
+  href: '/(tabs)' | '/(tabs)/comptes' | '/(tabs)/soir' | '/(tabs)/plus';
+  label: string;
+  match: string[];
+  icon: IconName;
+  iconOutline: IconName;
+}[] = [
+  {
+    href: '/(tabs)',
+    label: 'Accueil',
+    match: ['/', '/(tabs)', '/(tabs)/'],
+    icon: 'home',
+    iconOutline: 'home-outline',
+  },
+  {
+    href: '/(tabs)/comptes',
+    label: 'Comptes',
+    match: ['/comptes', '/(tabs)/comptes'],
+    icon: 'wallet',
+    iconOutline: 'wallet-outline',
+  },
+  {
+    href: '/(tabs)/soir',
+    label: 'Soir',
+    match: ['/soir', '/(tabs)/soir'],
+    icon: 'moon',
+    iconOutline: 'moon-outline',
+  },
+  {
+    href: '/(tabs)/plus',
+    label: 'Plus',
+    match: ['/plus', '/(tabs)/plus'],
+    icon: 'grid',
+    iconOutline: 'grid-outline',
+  },
+];
 
 function TabIcon({
   focused,
@@ -11,8 +51,8 @@ function TabIcon({
   nameOutline,
 }: {
   focused: boolean;
-  name: React.ComponentProps<typeof Ionicons>['name'];
-  nameOutline: React.ComponentProps<typeof Ionicons>['name'];
+  name: IconName;
+  nameOutline: IconName;
 }) {
   return (
     <Ionicons
@@ -23,10 +63,71 @@ function TabIcon({
   );
 }
 
-export default function TabsLayout() {
+function isActive(pathname: string, match: string[]) {
+  const p = pathname.replace(/\/$/, '') || '/';
+  return match.some((m) => {
+    const n = m.replace(/\/$/, '') || '/';
+    if (n === '/' || n === '/(tabs)') {
+      return p === '/' || p === '/(tabs)' || p.endsWith('/(tabs)');
+    }
+    return p === n || p.endsWith(n);
+  });
+}
+
+function DesktopShell() {
+  const { sidebarWidth } = useLayout();
   const insets = useSafeAreaInsets();
-  const { isDesktop, isPhone } = useLayout();
-  const bottomPad = Math.max(insets.bottom, isPhone ? 10 : 12);
+  const pathname = usePathname();
+  const router = useRouter();
+
+  return (
+    <View style={styles.desktopRoot}>
+      <View
+        style={[
+          styles.sidebar,
+          {
+            width: sidebarWidth,
+            paddingTop: Math.max(insets.top, 24),
+            paddingBottom: Math.max(insets.bottom, 20),
+          },
+        ]}
+      >
+        <BrandMark size={36} style={{ marginBottom: 28, paddingHorizontal: 8 }} />
+        {DESKTOP_LINKS.map((link) => {
+          const focused = isActive(pathname, link.match);
+          return (
+            <Pressable
+              key={link.href}
+              accessibilityRole="button"
+              accessibilityState={{ selected: focused }}
+              accessibilityLabel={link.label}
+              onPress={() => router.replace(link.href)}
+              style={({ pressed }) => [
+                styles.sideItem,
+                focused && styles.sideItemOn,
+                pressed && { opacity: 0.88 },
+              ]}
+            >
+              <View style={styles.sideIcon}>
+                <TabIcon focused={focused} name={link.icon} nameOutline={link.iconOutline} />
+              </View>
+              <Text style={[styles.sideLabel, focused && styles.sideLabelOn]}>{link.label}</Text>
+            </Pressable>
+          );
+        })}
+        <View style={{ flex: 1 }} />
+        <Text style={styles.sideFoot}>Semence · hors ligne</Text>
+      </View>
+      <View style={styles.desktopMain}>
+        <Slot />
+      </View>
+    </View>
+  );
+}
+
+function MobileTabs() {
+  const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, 10);
   const barHeight = TOUCH + 20 + bottomPad;
 
   return (
@@ -40,29 +141,15 @@ export default function TabsLayout() {
           height: barHeight,
           paddingBottom: bottomPad,
           paddingTop: 10,
-          maxWidth: isDesktop ? 720 : undefined,
-          alignSelf: isDesktop ? 'center' : undefined,
-          width: isDesktop ? '100%' : undefined,
-          marginHorizontal: isDesktop ? 'auto' : undefined,
-          ...(Platform.OS === 'web' && isDesktop
-            ? {
-                borderTopLeftRadius: 16,
-                borderTopRightRadius: 16,
-                borderLeftWidth: 1,
-                borderRightWidth: 1,
-                borderColor: colors.rule,
-              }
-            : null),
         },
         tabBarActiveTintColor: colors.or,
         tabBarInactiveTintColor: colors.ink3,
         tabBarItemStyle: {
           minHeight: TOUCH,
-          paddingHorizontal: isPhone ? 2 : 8,
         },
         tabBarLabelStyle: {
           fontFamily: fonts.corpsSemi,
-          fontSize: isPhone ? 11 : 12,
+          fontSize: 11,
           marginTop: 2,
         },
       }}
@@ -110,3 +197,58 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+export default function TabsLayout() {
+  const { isCompact } = useLayout();
+  return isCompact ? <MobileTabs /> : <DesktopShell />;
+}
+
+const styles = StyleSheet.create({
+  desktopRoot: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: colors.ground,
+  },
+  sidebar: {
+    backgroundColor: colors.surface,
+    borderRightWidth: 1,
+    borderRightColor: colors.rule,
+    paddingHorizontal: 12,
+  },
+  desktopMain: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sideItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: TOUCH,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    marginBottom: 6,
+  },
+  sideItemOn: {
+    backgroundColor: colors.orWash,
+  },
+  sideIcon: {
+    width: 28,
+    alignItems: 'center',
+  },
+  sideLabel: {
+    marginLeft: 10,
+    fontFamily: fonts.corpsMed,
+    fontSize: 15,
+    color: colors.ink2,
+  },
+  sideLabelOn: {
+    fontFamily: fonts.corpsBold,
+    color: colors.or,
+  },
+  sideFoot: {
+    fontFamily: fonts.corps,
+    fontSize: 12,
+    color: colors.ink3,
+    paddingHorizontal: 12,
+    paddingBottom: 4,
+  },
+});

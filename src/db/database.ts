@@ -49,6 +49,18 @@ function defaultSettings(): Settings {
     epargneRate: 10,
     semenceRate: 5,
     monthlyIncome: 0,
+    avatarPreset: 'initials',
+    avatarPhoto: null,
+  };
+}
+
+function normalizeSettings(raw: Partial<Settings>): Settings {
+  const base = defaultSettings();
+  return {
+    ...base,
+    ...raw,
+    avatarPreset: typeof raw.avatarPreset === 'string' ? raw.avatarPreset : base.avatarPreset,
+    avatarPhoto: typeof raw.avatarPhoto === 'string' ? raw.avatarPhoto : null,
   };
 }
 
@@ -106,7 +118,9 @@ async function load(): Promise<Store> {
     try {
       const raw = await AsyncStorage.getItem(KEY);
       if (raw) {
-        cache = JSON.parse(raw) as Store;
+        const parsed = JSON.parse(raw) as Store;
+        parsed.settings = normalizeSettings(parsed.settings as Settings);
+        cache = parsed;
       } else {
         cache = emptyStore();
         await AsyncStorage.setItem(KEY, JSON.stringify(cache));
@@ -153,9 +167,11 @@ export async function updateSettings(patch: Partial<{
   epargneRate: number;
   semenceRate: number;
   monthlyIncome: number;
+  avatarPreset: string;
+  avatarPhoto: string | null;
 }>): Promise<Settings> {
   const store = await load();
-  store.settings = { ...store.settings, ...patch };
+  store.settings = normalizeSettings({ ...store.settings, ...patch });
   await save(store);
   return { ...store.settings };
 }
@@ -185,6 +201,8 @@ export async function completeOnboarding(input: {
   semenceRate: number;
   monthStartDay: number;
   pin: string;
+  avatarPreset?: string;
+  avatarPhoto?: string | null;
 }): Promise<void> {
   const rates = DEFAULT_RATES[input.profil];
   const donRate = input.profil === 'aucun' ? 0 : input.donRate || rates.don;
@@ -200,6 +218,8 @@ export async function completeOnboarding(input: {
     monthStartDay: input.monthStartDay,
     pinHash: simpleHash(input.pin),
     onboardingDone: 1,
+    avatarPreset: input.avatarPreset || 'initials',
+    avatarPhoto: input.avatarPhoto ?? null,
   });
 
   const store = await load();

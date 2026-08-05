@@ -60,7 +60,12 @@ export default function SoirScreen() {
     return (
       <Screen maxWidth="form">
         <View style={styles.doneHead}>
-          <Avatar name={settings.name || 'Toi'} size={64} />
+          <Avatar
+            name={settings.name || 'Toi'}
+            size={64}
+            preset={settings.avatarPreset}
+            photoUri={settings.avatarPhoto}
+          />
           <IconBadge name="checkmark-circle" size={44} />
         </View>
         <Eyebrow>Rendez-vous du soir</Eyebrow>
@@ -87,7 +92,12 @@ export default function SoirScreen() {
           </Eyebrow>
           <Title>Qu’as-tu dépensé aujourd’hui ?</Title>
         </View>
-        <Avatar name={settings.name || 'Toi'} size={48} />
+        <Avatar
+          name={settings.name || 'Toi'}
+          size={48}
+          preset={settings.avatarPreset}
+          photoUri={settings.avatarPhoto}
+        />
       </View>
       <Body style={{ marginBottom: 22 }}>Moins de deux minutes. Les montants habituels d’abord.</Body>
 

@@ -21,6 +21,10 @@ export interface Settings {
   epargneRate: number;
   semenceRate: number;
   monthlyIncome: number;
+  /** Preset id (`initials`, `leaf`, …) utilisé si pas de photo. */
+  avatarPreset: string;
+  /** Data URI base64 de la photo de profil, ou null. */
+  avatarPhoto: string | null;
 }
 
 export interface Account {
