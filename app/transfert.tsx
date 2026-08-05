@@ -1,11 +1,11 @@
 import { useNavigation, useRouter } from 'expo-router';
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text } from 'react-native';
+import { Alert, StyleSheet, Text } from 'react-native';
 import { useApp } from '../src/store/AppContext';
 import { transfer } from '../src/db/database';
 import { fcfa, parseFcfaInput } from '../src/lib/money';
 import { Button, Field, Screen, Segment } from '../src/ui/primitives';
-import { colors } from '../src/theme/colors';
+import { colors, fonts } from '../src/theme/colors';
 
 export default function TransfertScreen() {
   const navigation = useNavigation();
@@ -51,27 +51,25 @@ export default function TransfertScreen() {
   }));
 
   return (
-    <Screen>
-      <ScrollView>
-        <Text style={styles.label}>Depuis</Text>
-        <Segment value={fromId} onChange={setFromId} options={opts} />
-        <Text style={styles.label}>Vers</Text>
-        <Segment value={toId} onChange={setToId} options={opts} />
-        <Field label="Montant (FCFA)" value={amount} onChangeText={setAmount} keyboardType="number-pad" />
-        <Field label="Note" value={note} onChangeText={setNote} />
-        <Button label="Transférer" onPress={save} />
-      </ScrollView>
+    <Screen maxWidth="form" scroll keyboard>
+      <Text style={styles.label}>Depuis</Text>
+      <Segment value={fromId} onChange={setFromId} options={opts} />
+      <Text style={styles.label}>Vers</Text>
+      <Segment value={toId} onChange={setToId} options={opts} />
+      <Field label="Montant (FCFA)" value={amount} onChangeText={setAmount} keyboardType="number-pad" />
+      <Field label="Note" value={note} onChangeText={setNote} />
+      <Button label="Transférer" icon="swap-horizontal" onPress={save} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   label: {
+    fontFamily: fonts.corpsSemi,
     fontSize: 12,
-    letterSpacing: 1,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
-    color: colors.ink2,
-    fontWeight: '600',
+    color: colors.ink3,
     marginBottom: 8,
   },
 });

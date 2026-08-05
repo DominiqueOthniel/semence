@@ -1,4 +1,4 @@
-import { Alert, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Share, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApp } from '../../src/store/AppContext';
 import { exportBackup, updateSettings } from '../../src/db/database';
@@ -10,6 +10,8 @@ import {
   Button,
   Eyebrow,
   IconBadge,
+  PageCol,
+  PageGrid,
   Row,
   Screen,
   SoftCard,
@@ -45,130 +47,134 @@ export default function PlusScreen() {
   }
 
   return (
-    <Screen padded={false}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.profile}>
-          <Avatar name={settings.name || 'Toi'} size={72} />
-          <View style={{ flex: 1 }}>
-            <Eyebrow>Profil</Eyebrow>
-            <Title style={{ marginBottom: 4 }}>{settings.name || 'Profil'}</Title>
-            <Body>
-              {PROFIL_LABELS[settings.profil]}
-              {settings.profil !== 'aucun' ? ` · ${DON_LABELS[settings.profil]} ${settings.donRate} %` : ''}
-            </Body>
-          </View>
+    <Screen maxWidth="wide" scroll>
+      <View style={styles.profile}>
+        <Avatar name={settings.name || 'Toi'} size={72} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Eyebrow>Profil</Eyebrow>
+          <Title style={{ marginBottom: 4 }}>{settings.name || 'Profil'}</Title>
+          <Body>
+            {PROFIL_LABELS[settings.profil]}
+            {settings.profil !== 'aucun' ? ` · ${DON_LABELS[settings.profil]} ${settings.donRate} %` : ''}
+          </Body>
         </View>
+      </View>
 
-        <SoftCard>
-          <Row
-            label={`Épargne ${settings.epargneRate} %`}
-            value={`Semence ${settings.semenceRate} %`}
-            icon="leaf-outline"
-          />
-          <Row label="Revenu mensuel" value={fcfa(settings.monthlyIncome)} icon="cash-outline" />
-          <Row
-            label="Début de mois"
-            value={`Jour ${settings.monthStartDay}`}
-            icon="calendar-outline"
-            last
-          />
-        </SoftCard>
+      <SoftCard>
+        <Row
+          label={`Épargne ${settings.epargneRate} %`}
+          value={`Semence ${settings.semenceRate} %`}
+          icon="leaf-outline"
+        />
+        <Row label="Revenu mensuel" value={fcfa(settings.monthlyIncome)} icon="cash-outline" />
+        <Row
+          label="Début de mois"
+          value={`Jour ${settings.monthStartDay}`}
+          icon="calendar-outline"
+          last
+        />
+      </SoftCard>
 
-        <SoftCard>
-          <View style={styles.cardHead}>
-            <IconBadge name="people-outline" />
-            <Eyebrow>Dettes & créances</Eyebrow>
-          </View>
-          {debts.length === 0 ? (
-            <Body>Aucune dette en cours.</Body>
-          ) : (
-            debts.map((d, i) => (
-              <Row
-                key={d.id}
-                label={`${d.direction === 'je_dois' ? 'Je dois à' : 'Me doit'} ${d.person}`}
-                value={fcfa(d.remaining)}
-                tone={d.direction === 'je_dois' ? 'rouge' : 'vert'}
-                icon="person-outline"
-                last={i === debts.length - 1}
-              />
-            ))
-          )}
-          <Button label="Ajouter" variant="soft" icon="add" onPress={() => router.push('/dette')} />
-        </SoftCard>
+      <PageGrid>
+        <PageCol>
+          <SoftCard>
+            <View style={styles.cardHead}>
+              <IconBadge name="people-outline" />
+              <Eyebrow>Dettes & créances</Eyebrow>
+            </View>
+            {debts.length === 0 ? (
+              <Body>Aucune dette en cours.</Body>
+            ) : (
+              debts.map((d, i) => (
+                <Row
+                  key={d.id}
+                  label={`${d.direction === 'je_dois' ? 'Je dois à' : 'Me doit'} ${d.person}`}
+                  value={fcfa(d.remaining)}
+                  tone={d.direction === 'je_dois' ? 'rouge' : 'vert'}
+                  icon="person-outline"
+                  last={i === debts.length - 1}
+                />
+              ))
+            )}
+            <Button label="Ajouter" variant="soft" icon="add" onPress={() => router.push('/dette')} />
+          </SoftCard>
 
-        <SoftCard>
-          <View style={styles.cardHead}>
-            <IconBadge name="card-outline" bg={colors.rougeWash} color={colors.rouge} />
-            <Eyebrow>Crédits</Eyebrow>
-          </View>
-          {credits.length === 0 ? (
-            <Body>Aucun crédit enregistré.</Body>
-          ) : (
-            credits.map((c, i) => (
-              <Row
-                key={c.id}
-                label={`${c.label} · surcoût ${fcfa(c.totalDue - c.received)}`}
-                value={fcfa(c.remaining)}
-                tone="rouge"
-                icon="card-outline"
-                last={i === credits.length - 1}
-              />
-            ))
-          )}
-          {creditYear.cost > 0 && (
-            <Body style={{ marginTop: 8 }}>Coût cumulé 12 mois : {fcfa(creditYear.cost)}</Body>
-          )}
-          <Button label="Ajouter un crédit" variant="soft" icon="add" onPress={() => router.push('/credit')} />
-        </SoftCard>
+          <SoftCard>
+            <View style={styles.cardHead}>
+              <IconBadge name="card-outline" bg={colors.rougeWash} color={colors.rouge} />
+              <Eyebrow>Crédits</Eyebrow>
+            </View>
+            {credits.length === 0 ? (
+              <Body>Aucun crédit enregistré.</Body>
+            ) : (
+              credits.map((c, i) => (
+                <Row
+                  key={c.id}
+                  label={`${c.label} · surcoût ${fcfa(c.totalDue - c.received)}`}
+                  value={fcfa(c.remaining)}
+                  tone="rouge"
+                  icon="card-outline"
+                  last={i === credits.length - 1}
+                />
+              ))
+            )}
+            {creditYear.cost > 0 && (
+              <Body style={{ marginTop: 8 }}>Coût cumulé 12 mois : {fcfa(creditYear.cost)}</Body>
+            )}
+            <Button label="Ajouter un crédit" variant="soft" icon="add" onPress={() => router.push('/credit')} />
+          </SoftCard>
+        </PageCol>
 
-        <SoftCard>
-          <View style={styles.cardHead}>
-            <IconBadge name="flag-outline" bg={colors.ambreWash} color={colors.ambre} />
-            <Eyebrow>Objectifs d’épargne</Eyebrow>
-          </View>
-          {goals.length === 0 ? (
-            <Body>Aucun objectif.</Body>
-          ) : (
-            goals.map((g, i) => (
-              <Row
-                key={g.id}
-                label={g.name}
-                value={`${fcfa(g.current)} / ${fcfa(g.target)}`}
-                tone="vert"
-                icon="flag-outline"
-                last={i === goals.length - 1}
-              />
-            ))
-          )}
-          <Button label="Nouvel objectif" variant="soft" icon="add" onPress={() => router.push('/objectif')} />
-        </SoftCard>
+        <PageCol>
+          <SoftCard>
+            <View style={styles.cardHead}>
+              <IconBadge name="flag-outline" bg={colors.ambreWash} color={colors.ambre} />
+              <Eyebrow>Objectifs d’épargne</Eyebrow>
+            </View>
+            {goals.length === 0 ? (
+              <Body>Aucun objectif.</Body>
+            ) : (
+              goals.map((g, i) => (
+                <Row
+                  key={g.id}
+                  label={g.name}
+                  value={`${fcfa(g.current)} / ${fcfa(g.target)}`}
+                  tone="vert"
+                  icon="flag-outline"
+                  last={i === goals.length - 1}
+                />
+              ))
+            )}
+            <Button label="Nouvel objectif" variant="soft" icon="add" onPress={() => router.push('/objectif')} />
+          </SoftCard>
 
-        <SoftCard style={{ marginBottom: 8 }}>
-          <View style={styles.cardHead}>
-            <IconBadge name="shield-checkmark-outline" />
-            <Eyebrow>Sécurité & données</Eyebrow>
-          </View>
-          <Button label="Exporter une sauvegarde" icon="cloud-download-outline" onPress={backup} />
-          <Button
-            label="Changer le jour de début de mois"
-            variant="ghost"
-            icon="calendar-outline"
-            onPress={changeMonthStart}
-          />
-          <Button label="Verrouiller l’app" variant="ghost" icon="lock-closed-outline" onPress={() => setUnlocked(false)} />
-          <Text style={styles.foot}>Semence · V1 · Hors ligne · FCFA</Text>
-        </SoftCard>
-      </ScrollView>
+          <SoftCard style={{ marginBottom: 8 }}>
+            <View style={styles.cardHead}>
+              <IconBadge name="shield-checkmark-outline" />
+              <Eyebrow>Sécurité & données</Eyebrow>
+            </View>
+            <Button label="Exporter une sauvegarde" icon="cloud-download-outline" onPress={backup} />
+            <Button
+              label="Changer le jour de début de mois"
+              variant="ghost"
+              icon="calendar-outline"
+              onPress={changeMonthStart}
+            />
+            <Button
+              label="Verrouiller l’app"
+              variant="ghost"
+              icon="lock-closed-outline"
+              onPress={() => setUnlocked(false)}
+            />
+            <Text style={styles.foot}>Semence · V1 · Hors ligne · FCFA</Text>
+          </SoftCard>
+        </PageCol>
+      </PageGrid>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 48,
-  },
   profile: {
     flexDirection: 'row',
     alignItems: 'center',

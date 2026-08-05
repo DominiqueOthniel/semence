@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../../src/store/AppContext';
 import { DON_LABELS } from '../../src/types';
 import { fcfa } from '../../src/lib/money';
+import { useLayout, TOUCH } from '../../src/hooks/useLayout';
 import {
   Amount,
   Avatar,
@@ -11,6 +12,8 @@ import {
   Button,
   Eyebrow,
   IconBadge,
+  PageCol,
+  PageGrid,
   ProgressBar,
   Row,
   Screen,
@@ -21,6 +24,7 @@ import { colors, fonts } from '../../src/theme/colors';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { gutter, isDesktop } = useLayout();
   const { settings, envelopes, position, creditYear, eveningDone, transactions } = useApp();
   if (!settings || !envelopes || !position) return null;
 
@@ -28,20 +32,77 @@ export default function HomeScreen() {
   const hour = new Date().getHours();
   const salut = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
 
+  const envelopesCard = (
+    <SoftCard>
+      <View style={styles.cardHead}>
+        <IconBadge name="layers-outline" />
+        <Eyebrow>Enveloppes du mois</Eyebrow>
+      </View>
+      {settings.profil !== 'aucun' && donLabel ? (
+        <EnvelopeLine
+          label={donLabel}
+          spent={envelopes.donSpent}
+          budget={envelopes.donBudget}
+          color={colors.ambre}
+        />
+      ) : null}
+      <EnvelopeLine
+        label="Épargne"
+        spent={envelopes.epargneSpent}
+        budget={envelopes.epargneBudget}
+        color={colors.or}
+      />
+      <EnvelopeLine
+        label="Semence"
+        spent={envelopes.semenceSpent}
+        budget={envelopes.semenceBudget}
+        color={colors.orVif}
+      />
+      <EnvelopeLine
+        label="Courant"
+        spent={envelopes.courantSpent}
+        budget={envelopes.courantBudget}
+        color={colors.ink3}
+        last
+      />
+    </SoftCard>
+  );
+
+  const positionCard = (
+    <SoftCard>
+      <View style={styles.cardHead}>
+        <IconBadge name="pie-chart-outline" bg={colors.ambreWash} color={colors.ambre} />
+        <Eyebrow>Position réelle</Eyebrow>
+      </View>
+      <Amount style={{ marginBottom: 4 }}>{fcfa(position.net)}</Amount>
+      <Row label="Disponible" value={fcfa(position.liquid)} icon="wallet-outline" />
+      <Row label="Épargne objectifs" value={fcfa(position.savings)} tone="vert" icon="flag-outline" />
+      <Row label="On me doit" value={fcfa(position.owedToMe)} tone="vert" icon="arrow-down-outline" />
+      <Row label="Je dois · personnes" value={fcfa(position.iOwePeople)} tone="rouge" icon="arrow-up-outline" />
+      <Row
+        label="Je dois · crédits"
+        value={fcfa(position.iOweCredits)}
+        tone="rouge"
+        icon="card-outline"
+        last
+      />
+    </SoftCard>
+  );
+
   return (
-    <Screen padded={false}>
+    <Screen padded={false} maxWidth="wide">
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <LinearGradient
           colors={[colors.groundDeep, colors.ground, colors.ground]}
-          locations={[0, 0.5, 1]}
-          style={styles.hero}
+          locations={[0, 0.55, 1]}
+          style={[styles.hero, { paddingHorizontal: gutter }]}
         >
           <View style={styles.topRow}>
             <BrandMark size={38} />
-            <Avatar name={settings.name || 'Toi'} size={42} />
+            <Avatar name={settings.name || 'Toi'} size={44} />
           </View>
 
-          <Text style={styles.hello}>
+          <Text style={[styles.hello, isDesktop && styles.helloDesktop]}>
             {salut}
             {settings.name ? `, ${settings.name.split(' ')[0]}` : ''}.
           </Text>
@@ -54,11 +115,11 @@ export default function HomeScreen() {
             courant
           </Body>
 
-          <View style={styles.ctaRow}>
-            <View style={{ flex: 1 }}>
+          <View style={[styles.ctaRow, isDesktop && styles.ctaRowDesktop]}>
+            <View style={styles.ctaItem}>
               <Button label="Saisir" icon="add-circle-outline" onPress={() => router.push('/saisie')} />
             </View>
-            <View style={{ flex: 1 }}>
+            <View style={styles.ctaItem}>
               <Button
                 label="Revenu"
                 icon="arrow-down-circle-outline"
@@ -69,117 +130,77 @@ export default function HomeScreen() {
           </View>
         </LinearGradient>
 
-        <View style={styles.body}>
-          <SoftCard>
-            <View style={styles.cardHead}>
-              <IconBadge name="layers-outline" />
-              <Eyebrow>Enveloppes du mois</Eyebrow>
-            </View>
-            {settings.profil !== 'aucun' && donLabel ? (
-              <EnvelopeLine
-                label={donLabel}
-                spent={envelopes.donSpent}
-                budget={envelopes.donBudget}
-                color={colors.ambre}
-              />
-            ) : null}
-            <EnvelopeLine
-              label="Épargne"
-              spent={envelopes.epargneSpent}
-              budget={envelopes.epargneBudget}
-              color={colors.or}
-            />
-            <EnvelopeLine
-              label="Semence"
-              spent={envelopes.semenceSpent}
-              budget={envelopes.semenceBudget}
-              color={colors.orVif}
-            />
-            <EnvelopeLine
-              label="Courant"
-              spent={envelopes.courantSpent}
-              budget={envelopes.courantBudget}
-              color={colors.ink3}
-              last
-            />
-          </SoftCard>
+        <View style={[styles.body, { paddingHorizontal: gutter }]}>
+          <PageGrid>
+            <PageCol flex={1.05}>
+              {envelopesCard}
+              {positionCard}
+            </PageCol>
+            <PageCol flex={0.95}>
+              {!eveningDone && (
+                <Pressable
+                  onPress={() => router.push('/(tabs)/soir')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Ouvrir le rendez-vous du soir"
+                  style={({ pressed }) => [pressed && { opacity: 0.92 }]}
+                >
+                  <SoftCard style={styles.soirCard}>
+                    <View style={styles.soirRow}>
+                      <IconBadge name="moon-outline" bg={colors.ambreWash} color={colors.ambre} />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.sectionTitle}>Rendez-vous du soir</Text>
+                        <Body>
+                          À {String(settings.eveningHour).padStart(2, '0')} h{' '}
+                          {String(settings.eveningMinute).padStart(2, '0')} · deux minutes
+                        </Body>
+                      </View>
+                      <Text style={styles.link}>Ouvrir</Text>
+                    </View>
+                  </SoftCard>
+                </Pressable>
+              )}
 
-          <SoftCard>
-            <View style={styles.cardHead}>
-              <IconBadge name="pie-chart-outline" bg={colors.ambreWash} color={colors.ambre} />
-              <Eyebrow>Position réelle</Eyebrow>
-            </View>
-            <Amount style={{ marginBottom: 4 }}>{fcfa(position.net)}</Amount>
-            <Row label="Disponible" value={fcfa(position.liquid)} icon="wallet-outline" />
-            <Row label="Épargne objectifs" value={fcfa(position.savings)} tone="vert" icon="flag-outline" />
-            <Row label="On me doit" value={fcfa(position.owedToMe)} tone="vert" icon="arrow-down-outline" />
-            <Row label="Je dois · personnes" value={fcfa(position.iOwePeople)} tone="rouge" icon="arrow-up-outline" />
-            <Row
-              label="Je dois · crédits"
-              value={fcfa(position.iOweCredits)}
-              tone="rouge"
-              icon="card-outline"
-              last
-            />
-          </SoftCard>
-
-          {!eveningDone && (
-            <Pressable onPress={() => router.push('/(tabs)/soir')}>
-              <SoftCard style={styles.soirCard}>
-                <View style={styles.soirRow}>
-                  <IconBadge name="moon-outline" bg={colors.ambreWash} color={colors.ambre} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sectionTitle}>Rendez-vous du soir</Text>
-                    <Body>
-                      À {String(settings.eveningHour).padStart(2, '0')} h{' '}
-                      {String(settings.eveningMinute).padStart(2, '0')} · deux minutes
-                    </Body>
+              {creditYear.count > 0 && (
+                <SoftCard>
+                  <View style={styles.cardHead}>
+                    <IconBadge name="alert-circle-outline" bg={colors.rougeWash} color={colors.rouge} />
+                    <Eyebrow>Coût des emprunts</Eyebrow>
                   </View>
-                  <Text style={styles.link}>Ouvrir</Text>
+                  <Amount>{fcfa(creditYear.cost)}</Amount>
+                  <Body style={{ marginTop: 6 }}>
+                    Surcoût de {creditYear.count} emprunt{creditYear.count > 1 ? 's' : ''} sur 12 mois.
+                  </Body>
+                </SoftCard>
+              )}
+
+              <SoftCard style={{ marginBottom: 8 }}>
+                <View style={styles.cardHead}>
+                  <IconBadge name="time-outline" />
+                  <Eyebrow>Activité récente</Eyebrow>
                 </View>
+                {transactions.length === 0 ? (
+                  <Body>Aucune opération pour l’instant.</Body>
+                ) : (
+                  transactions.slice(0, isDesktop ? 8 : 6).map((t, i, arr) => (
+                    <Row
+                      key={t.id}
+                      label={t.note || t.type}
+                      value={`${t.type === 'revenu' ? '+' : t.type === 'depense' ? '−' : ''}${fcfa(t.amount)}`}
+                      tone={t.type === 'revenu' ? 'vert' : t.type === 'depense' ? 'rouge' : 'ink'}
+                      icon={
+                        t.type === 'revenu'
+                          ? 'arrow-down-circle-outline'
+                          : t.type === 'transfert'
+                            ? 'swap-horizontal-outline'
+                            : 'arrow-up-circle-outline'
+                      }
+                      last={i === arr.length - 1}
+                    />
+                  ))
+                )}
               </SoftCard>
-            </Pressable>
-          )}
-
-          {creditYear.count > 0 && (
-            <SoftCard>
-              <View style={styles.cardHead}>
-                <IconBadge name="alert-circle-outline" bg={colors.rougeWash} color={colors.rouge} />
-                <Eyebrow>Coût des emprunts</Eyebrow>
-              </View>
-              <Amount>{fcfa(creditYear.cost)}</Amount>
-              <Body style={{ marginTop: 6 }}>
-                Surcoût de {creditYear.count} emprunt{creditYear.count > 1 ? 's' : ''} sur 12 mois.
-              </Body>
-            </SoftCard>
-          )}
-
-          <SoftCard style={{ marginBottom: 8 }}>
-            <View style={styles.cardHead}>
-              <IconBadge name="time-outline" />
-              <Eyebrow>Activité récente</Eyebrow>
-            </View>
-            {transactions.length === 0 ? (
-              <Body>Aucune opération pour l’instant.</Body>
-            ) : (
-              transactions.slice(0, 6).map((t, i, arr) => (
-                <Row
-                  key={t.id}
-                  label={t.note || t.type}
-                  value={`${t.type === 'revenu' ? '+' : t.type === 'depense' ? '−' : ''}${fcfa(t.amount)}`}
-                  tone={t.type === 'revenu' ? 'vert' : t.type === 'depense' ? 'rouge' : 'ink'}
-                  icon={
-                    t.type === 'revenu'
-                      ? 'arrow-down-circle-outline'
-                      : t.type === 'transfert'
-                        ? 'swap-horizontal-outline'
-                        : 'arrow-up-circle-outline'
-                  }
-                  last={i === arr.length - 1}
-                />
-              ))
-            )}
-          </SoftCard>
+            </PageCol>
+          </PageGrid>
         </View>
       </ScrollView>
     </Screen>
@@ -214,9 +235,8 @@ function EnvelopeLine({
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: 36 },
+  scroll: { paddingBottom: 40 },
   hero: {
-    paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 28,
   },
@@ -225,6 +245,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 22,
+    minHeight: TOUCH,
   },
   hello: {
     fontFamily: fonts.display,
@@ -232,6 +253,10 @@ const styles = StyleSheet.create({
     lineHeight: 34,
     color: colors.ink,
     marginBottom: 18,
+  },
+  helloDesktop: {
+    fontSize: 36,
+    lineHeight: 42,
   },
   heroLabel: {
     fontFamily: fonts.corpsSemi,
@@ -245,10 +270,19 @@ const styles = StyleSheet.create({
   heroMeta: { marginBottom: 8 },
   ctaRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
     marginTop: 10,
   },
-  body: { paddingHorizontal: 20 },
+  ctaRowDesktop: {
+    maxWidth: 420,
+  },
+  ctaItem: {
+    flexGrow: 1,
+    flexBasis: 140,
+    minWidth: 140,
+  },
+  body: { paddingTop: 4 },
   cardHead: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -269,6 +303,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    minHeight: TOUCH,
   },
   link: {
     fontFamily: fonts.corpsBold,

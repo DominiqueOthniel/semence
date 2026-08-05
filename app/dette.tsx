@@ -1,6 +1,6 @@
 import { useNavigation, useRouter } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
-import { Alert, ScrollView } from 'react-native';
+import { Alert } from 'react-native';
 import { addDebt } from '../src/db/database';
 import { useApp } from '../src/store/AppContext';
 import { parseFcfaInput } from '../src/lib/money';
@@ -35,21 +35,19 @@ export default function DetteScreen() {
   }
 
   return (
-    <Screen>
-      <ScrollView>
-        <Segment
-          value={direction}
-          onChange={setDirection}
-          options={[
-            { value: 'je_dois', label: 'Je dois' },
-            { value: 'on_me_doit', label: 'On me doit' },
-          ]}
-        />
-        <Field label="Personne" value={person} onChangeText={setPerson} placeholder="Nom" />
-        <Field label="Montant (FCFA)" value={amount} onChangeText={setAmount} keyboardType="number-pad" />
-        <Field label="Note" value={note} onChangeText={setNote} />
-        <Button label="Enregistrer" onPress={save} />
-      </ScrollView>
+    <Screen maxWidth="form" scroll keyboard>
+      <Segment
+        value={direction}
+        onChange={setDirection}
+        options={[
+          { value: 'je_dois', label: 'Je dois', icon: 'arrow-up-outline' },
+          { value: 'on_me_doit', label: 'On me doit', icon: 'arrow-down-outline' },
+        ]}
+      />
+      <Field label="Personne" value={person} onChangeText={setPerson} placeholder="Nom" />
+      <Field label="Montant (FCFA)" value={amount} onChangeText={setAmount} keyboardType="number-pad" />
+      <Field label="Note" value={note} onChangeText={setNote} />
+      <Button label="Enregistrer" icon="checkmark-circle-outline" onPress={save} />
     </Screen>
   );
 }

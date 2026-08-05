@@ -20,7 +20,7 @@ export default function LockScreen() {
   }
 
   return (
-    <Screen padded={false}>
+    <Screen maxWidth="narrow" keyboard>
       <LinearGradient colors={[colors.groundDeep, colors.ground]} style={styles.wrap}>
         <View style={styles.center}>
           <View style={styles.logos}>
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   wrap: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    minHeight: 480,
   },
   center: {
     alignItems: 'stretch',

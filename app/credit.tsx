@@ -1,11 +1,11 @@
 import { useNavigation, useRouter } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
-import { Alert, ScrollView, Text } from 'react-native';
+import { Alert, Text } from 'react-native';
 import { addCredit } from '../src/db/database';
 import { useApp } from '../src/store/AppContext';
 import { fcfa, parseFcfaInput } from '../src/lib/money';
 import { Body, Button, Field, Screen } from '../src/ui/primitives';
-import { colors } from '../src/theme/colors';
+import { colors, fonts } from '../src/theme/colors';
 
 export default function CreditScreen() {
   const navigation = useNavigation();
@@ -38,27 +38,25 @@ export default function CreditScreen() {
   }
 
   return (
-    <Screen>
-      <ScrollView>
-        <Body style={{ marginBottom: 14 }}>
-          Ce qui compte, ce n’est pas le taux : c’est ce que l’emprunt t’a coûté en FCFA.
-        </Body>
-        <Field label="Libellé" value={label} onChangeText={setLabel} />
-        <Field label="Montant reçu (FCFA)" value={received} onChangeText={setReceived} keyboardType="number-pad" />
-        <Field
-          label="Total à rembourser (FCFA)"
-          value={totalDue}
-          onChangeText={setTotalDue}
-          keyboardType="number-pad"
-        />
-        <Field label="Note" value={note} onChangeText={setNote} />
-        {cost > 0 && (
-          <Text style={{ fontFamily: 'Courier', color: colors.rouge, marginBottom: 12 }}>
-            Surcoût de cet emprunt : {fcfa(cost)}
-          </Text>
-        )}
-        <Button label="Enregistrer" onPress={save} />
-      </ScrollView>
+    <Screen maxWidth="form" scroll keyboard>
+      <Body style={{ marginBottom: 14 }}>
+        Ce qui compte, ce n’est pas le taux : c’est ce que l’emprunt t’a coûté en FCFA.
+      </Body>
+      <Field label="Libellé" value={label} onChangeText={setLabel} />
+      <Field label="Montant reçu (FCFA)" value={received} onChangeText={setReceived} keyboardType="number-pad" />
+      <Field
+        label="Total à rembourser (FCFA)"
+        value={totalDue}
+        onChangeText={setTotalDue}
+        keyboardType="number-pad"
+      />
+      <Field label="Note" value={note} onChangeText={setNote} />
+      {cost > 0 && (
+        <Text style={{ fontFamily: fonts.chiffreMed, color: colors.rouge, marginBottom: 12, fontSize: 15 }}>
+          Surcoût de cet emprunt : {fcfa(cost)}
+        </Text>
+      )}
+      <Button label="Enregistrer" icon="checkmark-circle-outline" onPress={save} />
     </Screen>
   );
 }

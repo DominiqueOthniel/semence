@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../src/store/AppContext';
 import { addExpense, addIncome } from '../src/db/database';
 import type { EnvelopeKind } from '../src/types';
@@ -62,51 +62,45 @@ export default function SaisieScreen() {
   ];
 
   return (
-    <Screen>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-        {!isIncome && (
-          <>
-            <Text style={styles.label}>Enveloppe</Text>
-            <Segment value={envelope} onChange={setEnvelope} options={envelopeOptions} />
-          </>
-        )}
+    <Screen maxWidth="form" scroll keyboard>
+      {!isIncome && (
+        <>
+          <Text style={styles.label}>Enveloppe</Text>
+          <Segment value={envelope} onChange={setEnvelope} options={envelopeOptions} />
+        </>
+      )}
 
-        <Text style={styles.label}>Compte</Text>
-        <Segment
-          value={String(accountId ?? '')}
-          onChange={(v) => setAccountId(Number(v))}
-          options={accounts.map((a) => ({
-            value: String(a.id),
-            label: a.name,
-            icon: 'wallet-outline' as const,
-          }))}
-        />
+      <Text style={styles.label}>Compte</Text>
+      <Segment
+        value={String(accountId ?? '')}
+        onChange={(v) => setAccountId(Number(v))}
+        options={accounts.map((a) => ({
+          value: String(a.id),
+          label: a.name,
+          icon: 'wallet-outline' as const,
+        }))}
+      />
 
-        {!isIncome && (
-          <View style={styles.favs}>
-            {favorites.map((f, i) => (
-              <Chip
-                key={f.id}
-                icon={FAV_ICONS[i % FAV_ICONS.length]}
-                label={`${f.label} · ${fcfa(f.amount)}`}
-                onPress={() => {
-                  setAmount(String(f.amount));
-                  setNote(f.label);
-                }}
-              />
-            ))}
-          </View>
-        )}
+      {!isIncome && (
+        <View style={styles.favs}>
+          {favorites.map((f, i) => (
+            <Chip
+              key={f.id}
+              icon={FAV_ICONS[i % FAV_ICONS.length]}
+              label={`${f.label} · ${fcfa(f.amount)}`}
+              onPress={() => {
+                setAmount(String(f.amount));
+                setNote(f.label);
+              }}
+            />
+          ))}
+        </View>
+      )}
 
-        <Field label="Montant (FCFA)" value={amount} onChangeText={setAmount} keyboardType="number-pad" />
-        <Field label="Libellé" value={note} onChangeText={setNote} placeholder={isIncome ? 'Salaire' : 'Déjeuner'} />
-        <Body style={{ marginBottom: 16 }}>Montants entiers FCFA, sans décimales.</Body>
-        <Button
-          label="Enregistrer"
-          icon="checkmark-circle-outline"
-          onPress={save}
-        />
-      </ScrollView>
+      <Field label="Montant (FCFA)" value={amount} onChangeText={setAmount} keyboardType="number-pad" />
+      <Field label="Libellé" value={note} onChangeText={setNote} placeholder={isIncome ? 'Salaire' : 'Déjeuner'} />
+      <Body style={{ marginBottom: 16 }}>Montants entiers FCFA, sans décimales.</Body>
+      <Button label="Enregistrer" icon="checkmark-circle-outline" onPress={save} />
     </Screen>
   );
 }

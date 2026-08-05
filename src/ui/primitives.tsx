@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
   type TextInputProps,
   type ViewStyle,
   type StyleProp,
@@ -13,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { avatarColor, colors, fonts, initials, radius, space } from '../theme/colors';
+import { CONTENT_WIDTH, TOUCH, useLayout } from '../hooks/useLayout';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -40,6 +44,8 @@ export function Avatar({
   const bg = avatarColor(name || 'Semence');
   return (
     <View
+      accessibilityRole="image"
+      accessibilityLabel={`Avatar ${name || 'Semence'}`}
       style={{
         width: size,
         height: size,
@@ -94,26 +100,119 @@ export function IconBadge({
   );
 }
 
+/**
+ * Cadre HCI : safe area, largeur max lisible, gouttières adaptatives.
+ * Sur desktop, centre la colonne pour éviter l’étirement.
+ */
 export function Screen({
   children,
   style,
   padded = true,
+  maxWidth = 'app',
+  scroll = false,
+  keyboard = false,
 }: {
   children: React.ReactNode;
   style?: ViewStyle;
   padded?: boolean;
+  maxWidth?: 'narrow' | 'form' | 'app' | 'wide' | number;
+  scroll?: boolean;
+  keyboard?: boolean;
 }) {
+  const { gutter } = useLayout();
+  const cap =
+    typeof maxWidth === 'number'
+      ? maxWidth
+      : maxWidth === 'narrow'
+        ? CONTENT_WIDTH.narrow
+        : maxWidth === 'form'
+          ? CONTENT_WIDTH.form
+          : maxWidth === 'wide'
+            ? CONTENT_WIDTH.wide
+            : CONTENT_WIDTH.app;
+
+  const frame = (
+    <View
+      style={[
+        styles.screen,
+        padded && { paddingHorizontal: gutter },
+        scroll && styles.screenScroll,
+        style,
+      ]}
+    >
+      <View style={[styles.frame, scroll && styles.frameScroll, { maxWidth: cap }]}>{children}</View>
+    </View>
+  );
+
+  const scrollView = (
+    <ScrollView
+      contentContainerStyle={styles.scrollGrow}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      {frame}
+    </ScrollView>
+  );
+
+  const body = keyboard ? (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={8}
+    >
+      {scroll ? scrollView : frame}
+    </KeyboardAvoidingView>
+  ) : scroll ? (
+    scrollView
+  ) : (
+    frame
+  );
+
   return (
-    <SafeAreaView style={[styles.safe, style]} edges={['top', 'left', 'right']}>
-      <View style={[styles.screen, padded && styles.screenPad]}>{children}</View>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      {body}
     </SafeAreaView>
   );
+}
+
+export function PageGrid({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: ViewStyle;
+}) {
+  const { columns, gutter } = useLayout();
+  return (
+    <View
+      style={[
+        styles.pageGrid,
+        columns > 1 && styles.pageGridWide,
+        { gap: gutter },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+export function PageCol({
+  children,
+  style,
+  flex = 1,
+}: {
+  children: React.ReactNode;
+  style?: ViewStyle;
+  flex?: number;
+}) {
+  const { columns } = useLayout();
+  return <View style={[{ flex: columns > 1 ? flex : undefined, minWidth: 0 }, style]}>{children}</View>;
 }
 
 export function Section({
   children,
   style,
-  last,
 }: {
   children: React.ReactNode;
   style?: ViewStyle;
@@ -131,7 +230,8 @@ export function Eyebrow({ children }: { children: React.ReactNode }) {
 }
 
 export function Title({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
-  return <Text style={[styles.title, style]}>{children}</Text>;
+  const { isPhone } = useLayout();
+  return <Text style={[styles.title, !isPhone && styles.titleDesktop, style]}>{children}</Text>;
 }
 
 export function Subtitle({ children }: { children: React.ReactNode }) {
@@ -155,7 +255,19 @@ export function Amount({
   large?: boolean;
   style?: StyleProp<TextStyle>;
 }) {
-  return <Text style={[styles.amount, large && styles.amountLarge, style]}>{children}</Text>;
+  const { isPhone } = useLayout();
+  return (
+    <Text
+      style={[
+        styles.amount,
+        large && styles.amountLarge,
+        large && !isPhone && styles.amountLargeDesktop,
+        style,
+      ]}
+    >
+      {children}
+    </Text>
+  );
 }
 
 export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
@@ -169,6 +281,7 @@ export function Button({
   disabled,
   compact,
   icon,
+  accessibilityHint,
 }: {
   label: string;
   onPress: () => void;
@@ -176,11 +289,17 @@ export function Button({
   disabled?: boolean;
   compact?: boolean;
   icon?: IconName;
+  accessibilityHint?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled }}
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      hitSlop={6}
       style={({ pressed }) => [
         styles.btn,
         compact && styles.btnCompact,
@@ -188,7 +307,7 @@ export function Button({
         variant === 'ghost' && styles.btnGhost,
         variant === 'danger' && styles.btnDanger,
         variant === 'soft' && styles.btnSoft,
-        pressed && styles.btnPressed,
+        pressed && !disabled && styles.btnPressed,
         disabled && styles.btnDisabled,
       ]}
     >
@@ -216,12 +335,27 @@ export function Button({
   );
 }
 
-export function Field(props: TextInputProps & { label: string }) {
-  const { label, style, ...rest } = props;
+export function Field(props: TextInputProps & { label: string; hint?: string }) {
+  const { label, style, hint, ...rest } = props;
+  const [focused, setFocused] = useState(false);
   return (
     <View style={styles.field}>
       <Label>{label}</Label>
-      <TextInput placeholderTextColor={colors.ink3} style={[styles.input, style]} {...rest} />
+      <TextInput
+        placeholderTextColor={colors.ink3}
+        style={[styles.input, focused && styles.inputFocused, style]}
+        onFocus={(e) => {
+          setFocused(true);
+          props.onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          props.onBlur?.(e);
+        }}
+        accessibilityLabel={label}
+        {...rest}
+      />
+      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
     </View>
   );
 }
@@ -236,13 +370,17 @@ export function Segment<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <View style={styles.segment}>
+    <View style={styles.segment} accessibilityRole="radiogroup">
       {options.map((o) => {
         const active = o.value === value;
         return (
           <Pressable
             key={o.value}
             onPress={() => onChange(o.value)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={o.label}
+            hitSlop={4}
             style={({ pressed }) => [
               styles.segmentItem,
               active && styles.segmentActive,
@@ -252,7 +390,7 @@ export function Segment<T extends string>({
             {o.icon ? (
               <Ionicons
                 name={o.icon}
-                size={15}
+                size={16}
                 color={active ? colors.or : colors.ink3}
                 style={{ marginRight: 6 }}
               />
@@ -270,7 +408,11 @@ export function Segment<T extends string>({
 export function ProgressBar({ value, max, color = colors.or }: { value: number; max: number; color?: string }) {
   const pct = max <= 0 ? 0 : Math.min(100, Math.round((value / max) * 100));
   return (
-    <View style={styles.track}>
+    <View
+      style={styles.track}
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: Math.max(max, 1), now: value }}
+    >
       <View style={[styles.fill, { width: `${pct}%`, backgroundColor: color }]} />
     </View>
   );
@@ -326,10 +468,14 @@ export function Chip({
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: !!active }}
+      accessibilityLabel={label}
+      hitSlop={4}
       style={({ pressed }) => [styles.chip, active && styles.chipActive, pressed && { opacity: 0.8 }]}
     >
       {icon ? (
-        <Ionicons name={icon} size={14} color={active ? colors.or : colors.ink2} style={{ marginRight: 6 }} />
+        <Ionicons name={icon} size={15} color={active ? colors.or : colors.ink2} style={{ marginRight: 6 }} />
       ) : null}
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
     </Pressable>
@@ -338,7 +484,11 @@ export function Chip({
 
 export function StepDots({ total, current }: { total: number; current: number }) {
   return (
-    <View style={styles.dots}>
+    <View
+      style={styles.dots}
+      accessibilityRole="text"
+      accessibilityLabel={`Étape ${current + 1} sur ${total}`}
+    >
       {Array.from({ length: total }).map((_, i) => (
         <View key={i} style={[styles.dot, i === current && styles.dotOn]} />
       ))}
@@ -354,9 +504,31 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.ground,
+    width: '100%',
+    alignItems: 'center',
   },
-  screenPad: {
-    paddingHorizontal: 20,
+  screenScroll: {
+    flexGrow: 1,
+    flex: undefined,
+    paddingTop: 8,
+    paddingBottom: 40,
+  },
+  frame: {
+    width: '100%',
+    flex: 1,
+  },
+  frameScroll: {
+    flex: undefined,
+  },
+  scrollGrow: {
+    flexGrow: 1,
+  },
+  pageGrid: {
+    width: '100%',
+  },
+  pageGridWide: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
   section: {
     marginBottom: space.lg,
@@ -379,10 +551,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.display,
-    fontSize: 30,
+    fontSize: 28,
     color: colors.ink,
-    lineHeight: 38,
+    lineHeight: 36,
     marginBottom: 10,
+  },
+  titleDesktop: {
+    fontSize: 34,
+    lineHeight: 42,
   },
   subtitle: {
     fontFamily: fonts.corps,
@@ -412,18 +588,22 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   amountLarge: {
-    fontSize: 40,
-    lineHeight: 48,
+    fontSize: 36,
+    lineHeight: 44,
     letterSpacing: -0.8,
     fontFamily: fonts.chiffreMed,
   },
+  amountLargeDesktop: {
+    fontSize: 48,
+    lineHeight: 56,
+  },
   btn: {
-    paddingVertical: 15,
+    paddingVertical: 14,
     paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 10,
-    minHeight: 52,
+    minHeight: TOUCH,
     borderRadius: radius.full,
   },
   btnInner: {
@@ -432,8 +612,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnCompact: {
-    minHeight: 44,
-    paddingVertical: 11,
+    minHeight: TOUCH,
+    paddingVertical: 12,
     marginTop: 0,
   },
   btnPrimary: {
@@ -473,9 +653,20 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: 14,
     paddingVertical: 14,
+    minHeight: TOUCH,
     fontSize: 17,
     fontFamily: fonts.corpsMed,
     color: colors.ink,
+  },
+  inputFocused: {
+    borderColor: colors.or,
+    backgroundColor: colors.white,
+  },
+  hint: {
+    fontFamily: fonts.corps,
+    fontSize: 13,
+    color: colors.ink3,
+    marginTop: 6,
   },
   segment: {
     flexDirection: 'row',
@@ -488,8 +679,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: colors.rule,
-    paddingVertical: 11,
+    paddingVertical: 12,
     paddingHorizontal: 14,
+    minHeight: TOUCH,
     backgroundColor: colors.surface,
     borderRadius: radius.full,
   },
@@ -521,7 +713,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 13,
+    paddingVertical: 14,
+    minHeight: TOUCH,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.rule,
   },
@@ -532,9 +725,9 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   rowIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     backgroundColor: colors.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -559,6 +752,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingVertical: 12,
     paddingHorizontal: 14,
+    minHeight: TOUCH,
     borderRadius: radius.full,
   },
   chipActive: {

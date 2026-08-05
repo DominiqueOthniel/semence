@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../../src/store/AppContext';
 import { addExpense, markEveningDone } from '../../src/db/database';
 import { fcfa } from '../../src/lib/money';
@@ -58,7 +58,7 @@ export default function SoirScreen() {
 
   if (eveningDone || doneLocal) {
     return (
-      <Screen>
+      <Screen maxWidth="form">
         <View style={styles.doneHead}>
           <Avatar name={settings.name || 'Toi'} size={64} />
           <IconBadge name="checkmark-circle" size={44} />
@@ -79,67 +79,60 @@ export default function SoirScreen() {
   }
 
   return (
-    <Screen padded={false}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.head}>
-          <View>
-            <Eyebrow>
-              {String(settings.eveningHour).padStart(2, '0')} h {String(settings.eveningMinute).padStart(2, '0')}
-            </Eyebrow>
-            <Title>Qu’as-tu dépensé aujourd’hui ?</Title>
-          </View>
-          <Avatar name={settings.name || 'Toi'} size={48} />
+    <Screen maxWidth="form" scroll keyboard>
+      <View style={styles.head}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Eyebrow>
+            {String(settings.eveningHour).padStart(2, '0')} h {String(settings.eveningMinute).padStart(2, '0')}
+          </Eyebrow>
+          <Title>Qu’as-tu dépensé aujourd’hui ?</Title>
         </View>
-        <Body style={{ marginBottom: 22 }}>Moins de deux minutes. Les montants habituels d’abord.</Body>
+        <Avatar name={settings.name || 'Toi'} size={48} />
+      </View>
+      <Body style={{ marginBottom: 22 }}>Moins de deux minutes. Les montants habituels d’abord.</Body>
 
-        <View style={styles.favs}>
-          {favorites.map((f, i) => (
-            <Chip
-              key={f.id}
-              icon={FAV_ICONS[i % FAV_ICONS.length]}
-              label={`${f.label} · ${fcfa(f.amount)}`}
-              onPress={() => pickFavorite(f.label, f.amount)}
-            />
-          ))}
+      <View style={styles.favs}>
+        {favorites.map((f, i) => (
+          <Chip
+            key={f.id}
+            icon={FAV_ICONS[i % FAV_ICONS.length]}
+            label={`${f.label} · ${fcfa(f.amount)}`}
+            onPress={() => pickFavorite(f.label, f.amount)}
+          />
+        ))}
+      </View>
+
+      <Field
+        label="Autre montant (FCFA)"
+        value={amount}
+        onChangeText={setAmount}
+        keyboardType="number-pad"
+        placeholder="0"
+      />
+      <Field label="Note (optionnel)" value={note} onChangeText={setNote} placeholder="Taxi, marché…" />
+
+      <SoftCard>
+        <View style={styles.cardHead}>
+          <IconBadge name="sunny-outline" bg={colors.ambreWash} color={colors.ambre} />
+          <Eyebrow>Après saisie</Eyebrow>
         </View>
+        <Amount large>{fcfa(Math.max(0, envelopes.perDay))}</Amount>
+        <Body style={{ marginTop: 6 }}>par jour · {envelopes.daysLeft} jours restants</Body>
+      </SoftCard>
 
-        <Field
-          label="Autre montant (FCFA)"
-          value={amount}
-          onChangeText={setAmount}
-          keyboardType="number-pad"
-          placeholder="0"
-        />
-        <Field label="Note (optionnel)" value={note} onChangeText={setNote} placeholder="Taxi, marché…" />
-
+      {verset && (
         <SoftCard>
-          <View style={styles.cardHead}>
-            <IconBadge name="sunny-outline" bg={colors.ambreWash} color={colors.ambre} />
-            <Eyebrow>Après saisie</Eyebrow>
-          </View>
-          <Amount large>{fcfa(Math.max(0, envelopes.perDay))}</Amount>
-          <Body style={{ marginTop: 6 }}>par jour · {envelopes.daysLeft} jours restants</Body>
+          <Text style={styles.verset}>« {verset.text} »</Text>
+          <Text style={styles.ref}>{verset.ref}</Text>
         </SoftCard>
+      )}
 
-        {verset && (
-          <SoftCard>
-            <Text style={styles.verset}>« {verset.text} »</Text>
-            <Text style={styles.ref}>{verset.ref}</Text>
-          </SoftCard>
-        )}
-
-        <Button label="Terminer le soir" icon="checkmark-circle-outline" onPress={finish} />
-      </ScrollView>
+      <Button label="Terminer le soir" icon="checkmark-circle-outline" onPress={finish} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 40,
-  },
   head: {
     flexDirection: 'row',
     justifyContent: 'space-between',

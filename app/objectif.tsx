@@ -1,6 +1,6 @@
 import { useNavigation, useRouter } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
-import { Alert, ScrollView } from 'react-native';
+import { Alert } from 'react-native';
 import { addGoal } from '../src/db/database';
 import { useApp } from '../src/store/AppContext';
 import { parseFcfaInput } from '../src/lib/money';
@@ -33,12 +33,10 @@ export default function ObjectifScreen() {
   }
 
   return (
-    <Screen>
-      <ScrollView>
-        <Field label="Nom de l’objectif" value={name} onChangeText={setName} placeholder="Scolarité" />
-        <Field label="Cible (FCFA)" value={target} onChangeText={setTarget} keyboardType="number-pad" />
-        <Button label="Créer" onPress={save} />
-      </ScrollView>
+    <Screen maxWidth="form" scroll keyboard>
+      <Field label="Nom de l’objectif" value={name} onChangeText={setName} placeholder="Scolarité" />
+      <Field label="Cible (FCFA)" value={target} onChangeText={setTarget} keyboardType="number-pad" />
+      <Button label="Créer" icon="flag-outline" onPress={save} />
     </Screen>
   );
 }

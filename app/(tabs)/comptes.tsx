@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApp } from '../../src/store/AppContext';
 import { createAccount, archiveAccount } from '../../src/db/database';
 import { ACCOUNT_TYPE_LABELS, type AccountType } from '../../src/types';
 import { fcfa } from '../../src/lib/money';
+import { TOUCH } from '../../src/hooks/useLayout';
 import {
   Avatar,
   Body,
@@ -65,80 +66,80 @@ export default function ComptesScreen() {
   }
 
   return (
-    <Screen padded={false}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.head}>
-          <View>
-            <Eyebrow>Portefeuille</Eyebrow>
-            <Title>Comptes</Title>
-          </View>
-          <IconBadge name="wallet" size={48} />
+    <Screen maxWidth="app" scroll keyboard>
+      <View style={styles.head}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Eyebrow>Portefeuille</Eyebrow>
+          <Title>Comptes</Title>
         </View>
+        <IconBadge name="wallet" size={48} />
+      </View>
 
-        <SoftCard>
-          <Text style={styles.totalLabel}>Solde consolidé</Text>
-          <Text style={styles.total}>{fcfa(position?.liquid ?? 0)}</Text>
-          <Body>Espèces, MoMo, banque : chaque compte a son solde.</Body>
-        </SoftCard>
+      <SoftCard>
+        <Text style={styles.totalLabel}>Solde consolidé</Text>
+        <Text style={styles.total}>{fcfa(position?.liquid ?? 0)}</Text>
+        <Body>Espèces, MoMo, banque : chaque compte a son solde.</Body>
+      </SoftCard>
 
-        {accounts.map((a) => (
-          <SoftCard key={a.id}>
-            <View style={styles.account}>
-              <Avatar name={a.name} size={44} icon={TYPE_ICON[a.type]} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.accountName}>{a.name}</Text>
-                <Text style={styles.accountType}>{ACCOUNT_TYPE_LABELS[a.type]}</Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.accountBal}>{fcfa(a.balance)}</Text>
-                <Text style={styles.archive} onPress={() => remove(a.id, a.name)}>
-                  Archiver
-                </Text>
-              </View>
+      {accounts.map((a) => (
+        <SoftCard key={a.id}>
+          <View style={styles.account}>
+            <Avatar name={a.name} size={44} icon={TYPE_ICON[a.type]} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.accountName}>{a.name}</Text>
+              <Text style={styles.accountType}>{ACCOUNT_TYPE_LABELS[a.type]}</Text>
             </View>
-          </SoftCard>
-        ))}
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={styles.accountBal}>{fcfa(a.balance)}</Text>
+              <Pressable
+                onPress={() => remove(a.id, a.name)}
+                accessibilityRole="button"
+                accessibilityLabel={`Archiver ${a.name}`}
+                hitSlop={8}
+                style={styles.archiveBtn}
+              >
+                <Text style={styles.archive}>Archiver</Text>
+              </Pressable>
+            </View>
+          </View>
+        </SoftCard>
+      ))}
 
-        <Button label="Transfert" icon="swap-horizontal" onPress={() => router.push('/transfert')} />
-        <Button
-          label={showForm ? 'Masquer' : 'Nouveau compte'}
-          variant="ghost"
-          icon={showForm ? 'chevron-up' : 'add'}
-          onPress={() => setShowForm((v) => !v)}
-        />
+      <Button label="Transfert" icon="swap-horizontal" onPress={() => router.push('/transfert')} />
+      <Button
+        label={showForm ? 'Masquer' : 'Nouveau compte'}
+        variant="ghost"
+        icon={showForm ? 'chevron-up' : 'add'}
+        onPress={() => setShowForm((v) => !v)}
+      />
 
-        {showForm && (
-          <SoftCard>
-            <Eyebrow>Nouveau</Eyebrow>
-            <Field label="Nom" value={name} onChangeText={setName} placeholder="Compte épargne" />
-            <Segment
-              value={type}
-              onChange={setType}
-              options={(Object.keys(ACCOUNT_TYPE_LABELS) as AccountType[]).map((k) => ({
-                value: k,
-                label: ACCOUNT_TYPE_LABELS[k],
-                icon: TYPE_ICON[k],
-              }))}
-            />
-            <Button label="Créer" icon="checkmark" onPress={add} />
-          </SoftCard>
-        )}
-      </ScrollView>
+      {showForm && (
+        <SoftCard>
+          <Eyebrow>Nouveau</Eyebrow>
+          <Field label="Nom" value={name} onChangeText={setName} placeholder="Compte épargne" />
+          <Segment
+            value={type}
+            onChange={setType}
+            options={(Object.keys(ACCOUNT_TYPE_LABELS) as AccountType[]).map((k) => ({
+              value: k,
+              label: ACCOUNT_TYPE_LABELS[k],
+              icon: TYPE_ICON[k],
+            }))}
+          />
+          <Button label="Créer" icon="checkmark" onPress={add} />
+        </SoftCard>
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 40,
-  },
   head: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 8,
+    gap: 12,
   },
   totalLabel: {
     fontFamily: fonts.corpsSemi,
@@ -158,6 +159,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    minHeight: TOUCH,
   },
   accountName: {
     fontFamily: fonts.corpsBold,
@@ -175,10 +177,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.ink,
   },
+  archiveBtn: {
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingTop: 4,
+  },
   archive: {
     fontFamily: fonts.corpsMed,
-    fontSize: 12,
+    fontSize: 13,
     color: colors.ink3,
-    marginTop: 6,
   },
 });
