@@ -22,21 +22,43 @@ export function BrandLogo({
 export function BrandMark({
   size = 40,
   showWord = true,
+  inverted = false,
+  tagline,
   style,
 }: {
   size?: number;
   showWord?: boolean;
+  inverted?: boolean;
+  tagline?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <View style={[styles.row, style]}>
-      <BrandLogo size={size} />
-      {showWord ? <Text style={[styles.word, { fontSize: Math.max(18, size * 0.52) }]}>Semence</Text> : null}
+    <View style={[styles.wrap, style]}>
+      <View style={styles.row}>
+        <BrandLogo size={size} />
+        {showWord ? (
+          <Text
+            style={[
+              styles.word,
+              { fontSize: Math.max(18, size * 0.52) },
+              inverted && { color: colors.white },
+            ]}
+          >
+            Semence
+          </Text>
+        ) : null}
+      </View>
+      {tagline ? (
+        <Text style={[styles.tagline, inverted && { color: colors.ambre }]}>{tagline}</Text>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrap: {
+    gap: 6,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -45,5 +67,13 @@ const styles = StyleSheet.create({
   word: {
     fontFamily: fonts.display,
     color: colors.ink,
+  },
+  tagline: {
+    fontFamily: fonts.corpsSemi,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.ink3,
+    paddingLeft: 2,
   },
 });

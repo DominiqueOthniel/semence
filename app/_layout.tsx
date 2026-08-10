@@ -155,6 +155,13 @@ export default function RootLayout() {
                 headerShadowVisible: false,
               }}
             />
+            <Stack.Screen
+              name="reflexes"
+              options={{
+                headerShown: false,
+                animation: 'slide_from_right',
+              }}
+            />
           </Stack>
         </Gate>
       </AppProvider>

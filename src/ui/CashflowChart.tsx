@@ -14,12 +14,12 @@ import { colors, fonts, radius } from '../theme/colors';
 import { Eyebrow, Segment } from './primitives';
 import { useLayout } from '../hooks/useLayout';
 
-const REVENU_COLOR = '#2C5F8A';
-const DEPENSE_COLOR = '#E07A2F';
+const REVENU_COLOR = colors.chartRevenu;
+const DEPENSE_COLOR = colors.chartDepense;
 
 export function CashflowChart({ transactions }: { transactions: Transaction[] }) {
   const { isCompact } = useLayout();
-  const [period, setPeriod] = useState<CashflowPeriod>('hebdo');
+  const [period, setPeriod] = useState<CashflowPeriod>(isCompact ? 'hebdo' : 'annuel');
   const [boxW, setBoxW] = useState(0);
 
   const series = useMemo(() => cashflowForPeriod(transactions, period), [transactions, period]);
@@ -30,6 +30,7 @@ export function CashflowChart({ transactions }: { transactions: Transaction[] })
   const ticks = useMemo(() => axisTicks(maxY, 5), [maxY]);
   const hasData = series.some((r) => r.revenus > 0 || r.depenses > 0);
   const caption = periodCaption(period);
+  const useBars = period === 'annuel' || period === 'mensuel';
 
   const pad = {
     top: 12,
@@ -38,19 +39,25 @@ export function CashflowChart({ transactions }: { transactions: Transaction[] })
     left: isCompact ? 40 : 48,
   };
 
-  const pointGap = period === 'mensuel' ? 32 : period === 'hebdo' ? 0 : 0;
+  const pointGap = period === 'mensuel' ? 36 : 0;
   const minChartW =
     period === 'mensuel' ? Math.max(series.length * pointGap, boxW || 0) : boxW;
   const chartW = Math.max(minChartW, boxW);
-  const chartH = isCompact ? 200 : 236;
+  const chartH = isCompact ? 200 : 248;
   const plotW = Math.max(0, chartW - pad.left - pad.right);
   const plotH = Math.max(0, chartH - pad.top - pad.bottom);
   const n = series.length;
   const edge = Math.min(12, plotW * 0.04);
+  const groupW = n > 0 ? (plotW - edge * 2) / n : 0;
+  const barW = Math.max(4, Math.min(14, groupW * 0.32));
 
   function xAt(i: number) {
     if (n <= 1) return pad.left + plotW / 2;
     return pad.left + edge + ((plotW - edge * 2) * i) / (n - 1);
+  }
+
+  function groupCenter(i: number) {
+    return pad.left + edge + groupW * i + groupW / 2;
   }
 
   function yAt(value: number) {
@@ -132,51 +139,76 @@ export function CashflowChart({ transactions }: { transactions: Transaction[] })
       ))}
 
       <G clipPath="url(#plotClip)">
-        <Polyline
-          points={linePoints('revenus')}
-          fill="none"
-          stroke={REVENU_COLOR}
-          strokeWidth={2.25}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-        <Polyline
-          points={linePoints('depenses')}
-          fill="none"
-          stroke={DEPENSE_COLOR}
-          strokeWidth={2.25}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
+        {useBars
+          ? series.map((row, i) => {
+              const cx = groupCenter(i);
+              const yR = yAt(row.revenus);
+              const yD = yAt(row.depenses);
+              const hR = Math.max(0, pad.top + plotH - yR);
+              const hD = Math.max(0, pad.top + plotH - yD);
+              return (
+                <React.Fragment key={`b-${row.key}`}>
+                  <Rect
+                    x={cx - barW - 2}
+                    y={yR}
+                    width={barW}
+                    height={hR}
+                    rx={3}
+                    fill={REVENU_COLOR}
+                  />
+                  <Rect x={cx + 2} y={yD} width={barW} height={hD} rx={3} fill={DEPENSE_COLOR} />
+                </React.Fragment>
+              );
+            })
+          : (
+            <>
+              <Polyline
+                points={linePoints('revenus')}
+                fill="none"
+                stroke={REVENU_COLOR}
+                strokeWidth={2.25}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+              <Polyline
+                points={linePoints('depenses')}
+                fill="none"
+                stroke={DEPENSE_COLOR}
+                strokeWidth={2.25}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+            </>
+          )}
       </G>
 
-      {series.map((row, i) => {
-        const showDots = period !== 'mensuel' || !isCompact || i % 2 === 0 || i === n - 1;
-        if (!showDots) return null;
-        const xr = xAt(i);
-        const yr = yAt(row.revenus);
-        const yd = yAt(row.depenses);
-        const r = period === 'mensuel' ? 3 : 4;
-        return (
-          <React.Fragment key={`m-${row.key}`}>
-            <Circle cx={xr} cy={yr} r={r} fill={REVENU_COLOR} stroke={colors.white} strokeWidth={1.5} />
-            <Rect
-              x={xr - r}
-              y={yd - r}
-              width={r * 2}
-              height={r * 2}
-              rx={1}
-              fill={DEPENSE_COLOR}
-              stroke={colors.white}
-              strokeWidth={1.5}
-            />
-          </React.Fragment>
-        );
-      })}
+      {!useBars
+        ? series.map((row, i) => {
+            const xr = xAt(i);
+            const yr = yAt(row.revenus);
+            const yd = yAt(row.depenses);
+            const r = 4;
+            return (
+              <React.Fragment key={`m-${row.key}`}>
+                <Circle cx={xr} cy={yr} r={r} fill={REVENU_COLOR} stroke={colors.white} strokeWidth={1.5} />
+                <Rect
+                  x={xr - r}
+                  y={yd - r}
+                  width={r * 2}
+                  height={r * 2}
+                  rx={1}
+                  fill={DEPENSE_COLOR}
+                  stroke={colors.white}
+                  strokeWidth={1.5}
+                />
+              </React.Fragment>
+            );
+          })
+        : null}
 
       {series.map((row, i) => {
         if (!showXLabel(i)) return null;
-        const x = xAt(i);
+        const x = useBars ? groupCenter(i) : xAt(i);
         if (period === 'hebdo') {
           return (
             <React.Fragment key={`x-${row.key}`}>
@@ -273,22 +305,27 @@ export function CashflowChart({ transactions }: { transactions: Transaction[] })
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: 14,
+    borderRadius: radius.xl,
+    padding: 18,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.rule,
     overflow: 'hidden',
     width: '100%',
     alignSelf: 'stretch',
+    shadowColor: '#1A2420',
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 2,
   },
   head: {
     marginBottom: 4,
   },
   title: {
     fontFamily: fonts.display,
-    fontSize: 18,
-    color: colors.or,
+    fontSize: 20,
+    color: colors.panel,
     marginTop: 2,
     marginBottom: 4,
   },
@@ -306,13 +343,13 @@ const styles = StyleSheet.create({
   legendMark: {
     width: 10,
     height: 10,
+    borderRadius: 2,
   },
   diamond: {
-    transform: [{ rotate: '45deg' }],
-    borderRadius: 1,
+    borderRadius: 2,
   },
   square: {
-    borderRadius: 1,
+    borderRadius: 2,
   },
   legendText: {
     fontFamily: fonts.corpsSemi,

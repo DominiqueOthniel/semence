@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Share, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { useRouter, type Href } from 'expo-router';
 import { useApp } from '../../src/store/AppContext';
 import { exportBackup, updateSettings } from '../../src/db/database';
 import { DON_LABELS, PROFIL_LABELS } from '../../src/types';
 import { fcfa } from '../../src/lib/money';
 import { notify } from '../../src/lib/notify';
+import { buildMonthlyCsvReport, reportFileName } from '../../src/lib/report';
+import { useLayout } from '../../src/hooks/useLayout';
 import {
   Avatar,
   Body,
@@ -16,41 +18,29 @@ import {
   PageGrid,
   Row,
   Screen,
-  Segment,
   SoftCard,
   Title,
 } from '../../src/ui/primitives';
 import { AvatarPicker, type AvatarChoice } from '../../src/ui/AvatarPicker';
-import { colors, fonts } from '../../src/theme/colors';
+import { colors, fonts, radius } from '../../src/theme/colors';
 
-const MONTH_START_OPTIONS = [
-  { value: '1', label: 'Jour 1', icon: 'calendar-outline' as const },
-  { value: '25', label: 'Jour 25', icon: 'calendar' as const },
-  { value: '28', label: 'Jour 28', icon: 'calendar-outline' as const },
-];
+const MONTH_OPTS = [
+  { day: 1, title: 'Le 1er', hint: 'Mois civil' },
+  { day: 25, title: 'Le 25', hint: 'Jour de paie' },
+  { day: 28, title: 'Le 28', hint: 'Fin de mois' },
+] as const;
 
 export default function PlusScreen() {
   const router = useRouter();
-  const { settings, debts, credits, goals, creditYear, refresh, setUnlocked } = useApp();
+  const { isCompact } = useLayout();
+  const { settings, debts, credits, goals, creditYear, refresh, setUnlocked, yearTransactions } =
+    useApp();
   const [editAvatar, setEditAvatar] = useState(false);
   const [draftAvatar, setDraftAvatar] = useState<AvatarChoice | null>(null);
   const [savingAvatar, setSavingAvatar] = useState(false);
   const [savingMonth, setSavingMonth] = useState(false);
 
   if (!settings) return null;
-
-  const monthKey = String(settings.monthStartDay);
-  const knownMonthStart = MONTH_START_OPTIONS.some((o) => o.value === monthKey);
-  const monthOptions = knownMonthStart
-    ? MONTH_START_OPTIONS
-    : [
-        ...MONTH_START_OPTIONS,
-        {
-          value: monthKey,
-          label: `Jour ${settings.monthStartDay}`,
-          icon: 'calendar-outline' as const,
-        },
-      ];
 
   const avatarValue: AvatarChoice = draftAvatar ?? {
     preset: settings.avatarPreset || 'initials',
@@ -66,6 +56,25 @@ export default function PlusScreen() {
       });
     } catch (e) {
       notify('Sauvegarde', String(e));
+    }
+  }
+
+  async function exportMonthlyReport() {
+    if (!settings) return;
+    try {
+      const now = new Date();
+      const csv = buildMonthlyCsvReport({
+        settings,
+        transactions: yearTransactions,
+        year: now.getFullYear(),
+        month: now.getMonth(),
+      });
+      await Share.share({
+        message: csv,
+        title: reportFileName(now.getFullYear(), now.getMonth()),
+      });
+    } catch (e) {
+      notify('Rapport', String(e));
     }
   }
 
@@ -111,12 +120,75 @@ export default function PlusScreen() {
     }
   }
 
+  const monthPicker = isCompact ? (
+    <View style={styles.monthBlock}>
+      <Eyebrow>Début du mois budgétaire</Eyebrow>
+      <Body style={{ marginBottom: 12 }}>
+        Choisis le jour où ton mois recommence (souvent le jour de salaire). Les enveloppes se
+        recalculent à partir de ce jour.
+      </Body>
+      <Body style={styles.monthCurrent}>Actuellement : le {settings.monthStartDay}</Body>
+      {MONTH_OPTS.map((opt) => {
+        const active = Number(settings.monthStartDay) === opt.day;
+        return (
+          <Button
+            key={opt.day}
+            label={active ? `${opt.title} · sélectionné` : `${opt.title} · ${opt.hint}`}
+            variant={active ? 'soft' : 'ghost'}
+            icon={active ? 'checkmark-circle' : 'calendar-outline'}
+            disabled={savingMonth}
+            onPress={() => {
+              if (!savingMonth) void setMonthStartDay(String(opt.day));
+            }}
+          />
+        );
+      })}
+      {savingMonth ? <Body style={{ marginTop: 8 }}>Enregistrement…</Body> : null}
+    </View>
+  ) : (
+    <View style={styles.monthBlock}>
+      <Eyebrow>Début du mois budgétaire</Eyebrow>
+      <Body style={{ marginBottom: 12 }}>
+        Jour où le mois recommence (salaire). Actuellement : le {settings.monthStartDay}.
+      </Body>
+      <View style={styles.monthChips}>
+        {MONTH_OPTS.map((opt) => {
+          const active = Number(settings.monthStartDay) === opt.day;
+          return (
+            <Pressable
+              key={opt.day}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              disabled={savingMonth}
+              onPress={() => {
+                if (!savingMonth) void setMonthStartDay(String(opt.day));
+              }}
+              style={({ pressed }) => [
+                styles.monthChip,
+                active && styles.monthChipOn,
+                pressed && { opacity: 0.9 },
+              ]}
+            >
+              <Text style={[styles.monthChipTitle, active && styles.monthChipTitleOn]}>
+                {opt.title}
+              </Text>
+              <Text style={[styles.monthChipHint, active && styles.monthChipHintOn]}>
+                {opt.hint}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {savingMonth ? <Body style={{ marginTop: 8 }}>Enregistrement…</Body> : null}
+    </View>
+  );
+
   return (
-    <Screen maxWidth="wide" scroll>
-      <View style={styles.profile}>
+    <Screen maxWidth={isCompact ? 'app' : 'wide'} scroll>
+      <View style={[styles.profile, !isCompact && styles.profileDesk]}>
         <Avatar
           name={settings.name || 'Toi'}
-          size={72}
+          size={isCompact ? 72 : 64}
           preset={settings.avatarPreset}
           photoUri={settings.avatarPhoto}
         />
@@ -125,10 +197,18 @@ export default function PlusScreen() {
           <Title style={{ marginBottom: 4 }}>{settings.name || 'Profil'}</Title>
           <Body>
             {PROFIL_LABELS[settings.profil]}
-            {settings.profil !== 'aucun' ? ` · ${DON_LABELS[settings.profil]} ${settings.donRate} %` : ''}
+            {settings.profil !== 'aucun'
+              ? ` · ${DON_LABELS[settings.profil]} ${settings.donRate} %`
+              : ''}
           </Body>
+          {!isCompact ? (
+            <Text style={styles.ratesInline}>
+              Épargne {settings.epargneRate} % · Semence {settings.semenceRate} % · Revenu{' '}
+              {fcfa(settings.monthlyIncome)}
+            </Text>
+          ) : null}
           <Button
-            label={editAvatar ? 'Fermer' : 'Changer avatar ou photo'}
+            label={editAvatar ? 'Fermer' : isCompact ? 'Changer avatar ou photo' : 'Modifier le profil'}
             variant="soft"
             icon={editAvatar ? 'chevron-up' : 'camera-outline'}
             compact
@@ -160,37 +240,23 @@ export default function PlusScreen() {
         </SoftCard>
       ) : null}
 
-      <SoftCard>
-        <Row
-          label={`Épargne ${settings.epargneRate} %`}
-          value={`Semence ${settings.semenceRate} %`}
-          icon="leaf-outline"
-        />
-        <Row label="Revenu mensuel" value={fcfa(settings.monthlyIncome)} icon="cash-outline" />
-        <Row
-          label="Début de mois actuel"
-          value={`Jour ${settings.monthStartDay}`}
-          icon="calendar-outline"
-          last
-        />
-        <View style={{ marginTop: 12 }}>
-          <Eyebrow>Changer le début du mois</Eyebrow>
-          <Body style={{ marginBottom: 10 }}>
-            Jour où ton mois budgétaire recommence (salaire, enveloppes).
-          </Body>
-          <Segment
-            value={monthKey}
-            onChange={(v) => {
-              if (!savingMonth) void setMonthStartDay(v);
-            }}
-            options={monthOptions}
-          />
-          {savingMonth ? <Body>Enregistrement…</Body> : null}
-        </View>
-      </SoftCard>
+      {isCompact ? (
+        <>
+          <SoftCard>
+            <Row
+              label={`Épargne ${settings.epargneRate} %`}
+              value={`Semence ${settings.semenceRate} %`}
+              icon="leaf-outline"
+            />
+            <Row
+              label="Revenu mensuel"
+              value={fcfa(settings.monthlyIncome)}
+              icon="cash-outline"
+              last
+            />
+            {monthPicker}
+          </SoftCard>
 
-      <PageGrid>
-        <PageCol>
           <SoftCard>
             <View style={styles.cardHead}>
               <IconBadge name="people-outline" />
@@ -232,14 +298,17 @@ export default function PlusScreen() {
                 />
               ))
             )}
-            {creditYear.cost > 0 && (
+            {creditYear.cost > 0 ? (
               <Body style={{ marginTop: 8 }}>Coût cumulé 12 mois : {fcfa(creditYear.cost)}</Body>
-            )}
-            <Button label="Ajouter un crédit" variant="soft" icon="add" onPress={() => router.push('/credit')} />
+            ) : null}
+            <Button
+              label="Ajouter un crédit"
+              variant="soft"
+              icon="add"
+              onPress={() => router.push('/credit')}
+            />
           </SoftCard>
-        </PageCol>
 
-        <PageCol>
           <SoftCard>
             <View style={styles.cardHead}>
               <IconBadge name="flag-outline" bg={colors.ambreWash} color={colors.ambre} />
@@ -259,7 +328,28 @@ export default function PlusScreen() {
                 />
               ))
             )}
-            <Button label="Nouvel objectif" variant="soft" icon="add" onPress={() => router.push('/objectif')} />
+            <Button
+              label="Nouvel objectif"
+              variant="soft"
+              icon="add"
+              onPress={() => router.push('/objectif')}
+            />
+          </SoftCard>
+
+          <SoftCard>
+            <View style={styles.cardHead}>
+              <IconBadge name="list-outline" bg={colors.ambreWash} color={colors.ambre} />
+              <Eyebrow>Les 10 réflexes</Eyebrow>
+            </View>
+            <Body style={{ marginBottom: 12 }}>
+              Habitudes quotidiennes, même esprit que le poster du pack.
+            </Body>
+            <Button
+              label="Voir les 10 réflexes"
+              variant="soft"
+              icon="bookmark-outline"
+              onPress={() => router.push('/reflexes' as Href)}
+            />
           </SoftCard>
 
           <SoftCard style={{ marginBottom: 8 }}>
@@ -269,6 +359,12 @@ export default function PlusScreen() {
             </View>
             <Button label="Exporter une sauvegarde" icon="cloud-download-outline" onPress={backup} />
             <Button
+              label="Exporter le rapport du mois (CSV)"
+              variant="soft"
+              icon="document-text-outline"
+              onPress={exportMonthlyReport}
+            />
+            <Button
               label="Verrouiller l’app"
               variant="ghost"
               icon="lock-closed-outline"
@@ -276,8 +372,175 @@ export default function PlusScreen() {
             />
             <Text style={styles.foot}>Semence · V1 · Hors ligne · FCFA</Text>
           </SoftCard>
-        </PageCol>
-      </PageGrid>
+        </>
+      ) : (
+        <>
+          <PageGrid cols={2} style={{ marginBottom: 8 }}>
+            <PageCol>
+              <SoftCard>
+                <View style={styles.cardHead}>
+                  <IconBadge name="leaf-outline" />
+                  <Eyebrow>Répartition</Eyebrow>
+                </View>
+                <Row
+                  label={`Épargne ${settings.epargneRate} %`}
+                  value={`Semence ${settings.semenceRate} %`}
+                  icon="leaf-outline"
+                />
+                <Row
+                  label="Revenu mensuel"
+                  value={fcfa(settings.monthlyIncome)}
+                  icon="cash-outline"
+                  last
+                />
+              </SoftCard>
+            </PageCol>
+            <PageCol>
+              <SoftCard>{monthPicker}</SoftCard>
+            </PageCol>
+          </PageGrid>
+
+          <PageGrid cols={3}>
+            <PageCol>
+              <SoftCard style={styles.deskPanel}>
+                <View style={styles.cardHead}>
+                  <IconBadge name="people-outline" />
+                  <Eyebrow>Dettes & créances</Eyebrow>
+                </View>
+                {debts.length === 0 ? (
+                  <Body>Aucune dette en cours.</Body>
+                ) : (
+                  debts.map((d, i) => (
+                    <Row
+                      key={d.id}
+                      label={`${d.direction === 'je_dois' ? 'Je dois à' : 'Me doit'} ${d.person}`}
+                      value={fcfa(d.remaining)}
+                      tone={d.direction === 'je_dois' ? 'rouge' : 'vert'}
+                      icon="person-outline"
+                      last={i === debts.length - 1}
+                    />
+                  ))
+                )}
+                <Button
+                  label="Ajouter"
+                  variant="soft"
+                  icon="add"
+                  onPress={() => router.push('/dette')}
+                />
+              </SoftCard>
+            </PageCol>
+
+            <PageCol>
+              <SoftCard style={styles.deskPanel}>
+                <View style={styles.cardHead}>
+                  <IconBadge name="card-outline" bg={colors.rougeWash} color={colors.rouge} />
+                  <Eyebrow>Crédits</Eyebrow>
+                </View>
+                {credits.length === 0 ? (
+                  <Body>Aucun crédit enregistré.</Body>
+                ) : (
+                  credits.map((c, i) => (
+                    <Row
+                      key={c.id}
+                      label={`${c.label} · surcoût ${fcfa(c.totalDue - c.received)}`}
+                      value={fcfa(c.remaining)}
+                      tone="rouge"
+                      icon="card-outline"
+                      last={i === credits.length - 1}
+                    />
+                  ))
+                )}
+                {creditYear.cost > 0 ? (
+                  <Body style={{ marginTop: 8 }}>
+                    Coût cumulé 12 mois : {fcfa(creditYear.cost)}
+                  </Body>
+                ) : null}
+                <Button
+                  label="Ajouter un crédit"
+                  variant="soft"
+                  icon="add"
+                  onPress={() => router.push('/credit')}
+                />
+              </SoftCard>
+            </PageCol>
+
+            <PageCol>
+              <SoftCard style={styles.deskPanel}>
+                <View style={styles.cardHead}>
+                  <IconBadge name="flag-outline" bg={colors.ambreWash} color={colors.ambre} />
+                  <Eyebrow>Objectifs d’épargne</Eyebrow>
+                </View>
+                {goals.length === 0 ? (
+                  <Body>Aucun objectif.</Body>
+                ) : (
+                  goals.map((g, i) => (
+                    <Row
+                      key={g.id}
+                      label={g.name}
+                      value={`${fcfa(g.current)} / ${fcfa(g.target)}`}
+                      tone="vert"
+                      icon="flag-outline"
+                      last={i === goals.length - 1}
+                    />
+                  ))
+                )}
+                <Button
+                  label="Nouvel objectif"
+                  variant="soft"
+                  icon="add"
+                  onPress={() => router.push('/objectif')}
+                />
+              </SoftCard>
+            </PageCol>
+          </PageGrid>
+
+          <PageGrid cols={2}>
+            <PageCol>
+              <SoftCard>
+                <View style={styles.cardHead}>
+                  <IconBadge name="list-outline" bg={colors.ambreWash} color={colors.ambre} />
+                  <Eyebrow>Les 10 réflexes</Eyebrow>
+                </View>
+                <Body style={{ marginBottom: 12 }}>
+                  Habitudes quotidiennes, même esprit que le poster du pack.
+                </Body>
+                <Button
+                  label="Voir les 10 réflexes"
+                  variant="soft"
+                  icon="bookmark-outline"
+                  onPress={() => router.push('/reflexes' as Href)}
+                />
+              </SoftCard>
+            </PageCol>
+            <PageCol>
+              <SoftCard style={{ marginBottom: 8 }}>
+                <View style={styles.cardHead}>
+                  <IconBadge name="shield-checkmark-outline" />
+                  <Eyebrow>Sécurité & données</Eyebrow>
+                </View>
+                <Button
+                  label="Exporter une sauvegarde"
+                  icon="cloud-download-outline"
+                  onPress={backup}
+                />
+                <Button
+                  label="Exporter le rapport du mois (CSV)"
+                  variant="soft"
+                  icon="document-text-outline"
+                  onPress={exportMonthlyReport}
+                />
+                <Button
+                  label="Verrouiller l’app"
+                  variant="ghost"
+                  icon="lock-closed-outline"
+                  onPress={() => setUnlocked(false)}
+                />
+                <Text style={styles.foot}>Semence · V1 · Hors ligne · FCFA</Text>
+              </SoftCard>
+            </PageCol>
+          </PageGrid>
+        </>
+      )}
     </Screen>
   );
 }
@@ -289,11 +552,74 @@ const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 18,
   },
+  profileDesk: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.rule,
+    padding: 18,
+    marginBottom: 16,
+  },
+  deskPanel: {
+    minHeight: 220,
+  },
+  ratesInline: {
+    fontFamily: fonts.corpsSemi,
+    fontSize: 14,
+    color: colors.or,
+    marginTop: 6,
+    marginBottom: 8,
+  },
   cardHead: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     marginBottom: 8,
+  },
+  monthBlock: {
+    marginTop: 4,
+  },
+  monthCurrent: {
+    fontFamily: fonts.corpsSemi,
+    color: colors.or,
+    marginBottom: 10,
+  },
+  monthChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  monthChip: {
+    flexGrow: 1,
+    flexBasis: 120,
+    minWidth: 110,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.ruleFort,
+    backgroundColor: colors.surface,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+  },
+  monthChipOn: {
+    borderColor: colors.or,
+    backgroundColor: colors.orWash,
+  },
+  monthChipTitle: {
+    fontFamily: fonts.corpsBold,
+    fontSize: 15,
+    color: colors.ink,
+    marginBottom: 4,
+  },
+  monthChipTitleOn: {
+    color: colors.panel,
+  },
+  monthChipHint: {
+    fontFamily: fonts.corps,
+    fontSize: 12,
+    color: colors.ink3,
+  },
+  monthChipHintOn: {
+    color: colors.or,
   },
   foot: {
     textAlign: 'center',

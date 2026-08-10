@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, radius } from '../../src/theme/colors';
 import { TOUCH, useLayout } from '../../src/hooks/useLayout';
 import { BrandMark } from '../../src/ui/BrandLogo';
+import { useApp } from '../../src/store/AppContext';
+import { Avatar } from '../../src/ui/primitives';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -49,18 +51,16 @@ function TabIcon({
   focused,
   name,
   nameOutline,
+  onDark,
 }: {
   focused: boolean;
   name: IconName;
   nameOutline: IconName;
+  onDark?: boolean;
 }) {
-  return (
-    <Ionicons
-      name={focused ? name : nameOutline}
-      size={22}
-      color={focused ? colors.or : colors.ink3}
-    />
-  );
+  const active = onDark ? colors.ambre : colors.or;
+  const idle = onDark ? 'rgba(255,255,255,0.55)' : colors.ink3;
+  return <Ionicons name={focused ? name : nameOutline} size={22} color={focused ? active : idle} />;
 }
 
 function isActive(pathname: string, match: string[]) {
@@ -79,6 +79,7 @@ function DesktopShell() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const router = useRouter();
+  const { settings } = useApp();
 
   return (
     <View style={styles.desktopRoot}>
@@ -86,13 +87,18 @@ function DesktopShell() {
         style={[
           styles.sidebar,
           {
-            width: sidebarWidth,
-            paddingTop: Math.max(insets.top, 24),
+            width: Math.max(sidebarWidth, 220),
+            paddingTop: Math.max(insets.top, 28),
             paddingBottom: Math.max(insets.bottom, 20),
           },
         ]}
       >
-        <BrandMark size={36} style={{ marginBottom: 28, paddingHorizontal: 8 }} />
+        <BrandMark
+          size={38}
+          inverted
+          tagline="Faire fructifier vos finances"
+          style={{ marginBottom: 32, paddingHorizontal: 8 }}
+        />
         {DESKTOP_LINKS.map((link) => {
           const focused = isActive(pathname, link.match);
           return (
@@ -105,18 +111,37 @@ function DesktopShell() {
               style={({ pressed }) => [
                 styles.sideItem,
                 focused && styles.sideItemOn,
-                pressed && { opacity: 0.88 },
+                pressed && { opacity: 0.9 },
               ]}
             >
               <View style={styles.sideIcon}>
-                <TabIcon focused={focused} name={link.icon} nameOutline={link.iconOutline} />
+                <TabIcon
+                  focused={focused}
+                  name={link.icon}
+                  nameOutline={link.iconOutline}
+                  onDark
+                />
               </View>
               <Text style={[styles.sideLabel, focused && styles.sideLabelOn]}>{link.label}</Text>
             </Pressable>
           );
         })}
         <View style={{ flex: 1 }} />
-        <Text style={styles.sideFoot}>Semence · hors ligne</Text>
+        <View style={styles.sideSecure}>
+          <Ionicons name="shield-checkmark-outline" size={14} color={colors.ambre} />
+          <Text style={styles.sideSecureText}>Sécurisé & confidentiel</Text>
+        </View>
+        <View style={styles.sideProfile}>
+          <Avatar
+            name={settings?.name || 'Toi'}
+            size={36}
+            preset={settings?.avatarPreset}
+            photoUri={settings?.avatarPhoto}
+          />
+          <Text style={styles.sideProfileName} numberOfLines={1}>
+            {settings?.name || 'Profil'}
+          </Text>
+        </View>
       </View>
       <View style={styles.desktopMain}>
         <Slot />
@@ -208,16 +233,20 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     backgroundColor: colors.ground,
+    minHeight: 0,
+    height: '100%',
   },
   sidebar: {
-    backgroundColor: colors.surface,
-    borderRightWidth: 1,
-    borderRightColor: colors.rule,
-    paddingHorizontal: 12,
+    backgroundColor: colors.panel,
+    paddingHorizontal: 14,
+    zIndex: 2,
   },
   desktopMain: {
     flex: 1,
     minWidth: 0,
+    minHeight: 0,
+    backgroundColor: colors.ground,
+    overflow: 'hidden',
   },
   sideItem: {
     flexDirection: 'row',
@@ -228,7 +257,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   sideItemOn: {
-    backgroundColor: colors.orWash,
+    backgroundColor: colors.panelSoft,
   },
   sideIcon: {
     width: 28,
@@ -238,17 +267,37 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontFamily: fonts.corpsMed,
     fontSize: 15,
-    color: colors.ink2,
+    color: 'rgba(255,255,255,0.7)',
   },
   sideLabelOn: {
     fontFamily: fonts.corpsBold,
-    color: colors.or,
+    color: colors.white,
   },
-  sideFoot: {
+  sideSecure: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    marginBottom: 14,
+  },
+  sideSecureText: {
     fontFamily: fonts.corps,
     fontSize: 12,
-    color: colors.ink3,
-    paddingHorizontal: 12,
-    paddingBottom: 4,
+    color: colors.inkOnDark,
+  },
+  sideProfile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: radius.md,
+    backgroundColor: colors.panelDeep,
+  },
+  sideProfileName: {
+    flex: 1,
+    fontFamily: fonts.corpsSemi,
+    fontSize: 14,
+    color: colors.white,
   },
 });

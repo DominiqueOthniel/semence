@@ -176,7 +176,7 @@ export function Screen({
   scroll?: boolean;
   keyboard?: boolean;
 }) {
-  const { gutter } = useLayout();
+  const { gutter, isCompact, maxWidth: layoutMax } = useLayout();
   const cap =
     typeof maxWidth === 'number'
       ? maxWidth
@@ -185,7 +185,7 @@ export function Screen({
         : maxWidth === 'form'
           ? CONTENT_WIDTH.form
           : maxWidth === 'wide'
-            ? CONTENT_WIDTH.wide
+            ? layoutMax
             : CONTENT_WIDTH.app;
 
   const frame = (
@@ -194,18 +194,30 @@ export function Screen({
         styles.screen,
         padded && { paddingHorizontal: gutter },
         scroll && styles.screenScroll,
+        !isCompact && maxWidth === 'wide' && styles.screenDesk,
         style,
       ]}
     >
-      <View style={[styles.frame, scroll && styles.frameScroll, { maxWidth: cap }]}>{children}</View>
+      <View
+        style={[
+          styles.frame,
+          scroll && styles.frameScroll,
+          !isCompact && maxWidth === 'wide' && styles.frameDesk,
+          { maxWidth: cap },
+        ]}
+      >
+        {children}
+      </View>
     </View>
   );
 
   const scrollView = (
     <ScrollView
+      style={styles.scrollHost}
       contentContainerStyle={styles.scrollGrow}
       keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
+      showsVerticalScrollIndicator
+      bounces
     >
       {frame}
     </ScrollView>
@@ -226,7 +238,7 @@ export function Screen({
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={isCompact ? ['top', 'left', 'right'] : ['left', 'right']}>
       {body}
     </SafeAreaView>
   );
@@ -235,16 +247,21 @@ export function Screen({
 export function PageGrid({
   children,
   style,
+  cols,
 }: {
   children: React.ReactNode;
   style?: ViewStyle;
+  /** Force 2 ou 3 colonnes sur large. Ignoré en compact. */
+  cols?: 2 | 3;
 }) {
   const { isWide, gutter } = useLayout();
+  const n = cols ?? 2;
   return (
     <View
       style={[
         styles.pageGrid,
         isWide && styles.pageGridWide,
+        isWide && n === 3 && styles.pageGridTriple,
         { gap: gutter },
         style,
       ]}
@@ -342,12 +359,18 @@ export function Button({
 }: {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'ghost' | 'danger' | 'soft';
+  variant?: 'primary' | 'ghost' | 'danger' | 'soft' | 'amber' | 'onDark';
   disabled?: boolean;
   compact?: boolean;
   icon?: IconName;
   accessibilityHint?: string;
 }) {
+  const iconColor =
+    variant === 'ghost' || variant === 'soft'
+      ? colors.or
+      : variant === 'onDark'
+        ? colors.white
+        : colors.white;
   return (
     <Pressable
       onPress={onPress}
@@ -364,18 +387,15 @@ export function Button({
         variant === 'ghost' && styles.btnGhost,
         variant === 'danger' && styles.btnDanger,
         variant === 'soft' && styles.btnSoft,
+        variant === 'amber' && styles.btnAmber,
+        variant === 'onDark' && styles.btnOnDark,
         pressed && !disabled && styles.btnPressed,
         disabled && styles.btnDisabled,
       ]}
     >
       <View style={styles.btnInner}>
         {icon ? (
-          <Ionicons
-            name={icon}
-            size={18}
-            color={variant === 'ghost' || variant === 'soft' ? colors.or : colors.white}
-            style={{ marginRight: 8 }}
-          />
+          <Ionicons name={icon} size={18} color={iconColor} style={{ marginRight: 8 }} />
         ) : null}
         <Text
           style={[
@@ -383,6 +403,7 @@ export function Button({
             variant === 'ghost' && { color: colors.or },
             variant === 'soft' && { color: colors.ink },
             variant === 'danger' && { color: colors.white },
+            variant === 'onDark' && { color: colors.white },
           ]}
         >
           {label}
@@ -557,12 +578,18 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.ground,
+    minHeight: 0,
   },
   screen: {
     flex: 1,
     backgroundColor: colors.ground,
     width: '100%',
     alignItems: 'center',
+    minHeight: 0,
+  },
+  screenDesk: {
+    alignItems: 'stretch',
+    paddingTop: 8,
   },
   screenScroll: {
     flexGrow: 1,
@@ -573,19 +600,35 @@ const styles = StyleSheet.create({
   frame: {
     width: '100%',
     flex: 1,
+    minHeight: 0,
+    alignSelf: 'stretch',
+  },
+  frameDesk: {
+    width: '100%',
   },
   frameScroll: {
     flex: undefined,
+    minHeight: undefined,
+  },
+  scrollHost: {
+    flex: 1,
+    minHeight: 0,
+    width: '100%',
   },
   scrollGrow: {
     flexGrow: 1,
   },
   pageGrid: {
     width: '100%',
+    maxWidth: '100%',
   },
   pageGridWide: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    flexWrap: 'nowrap',
+  },
+  pageGridTriple: {
+    alignItems: 'stretch',
   },
   section: {
     marginBottom: space.lg,
@@ -597,6 +640,11 @@ const styles = StyleSheet.create({
     marginBottom: space.md,
     borderWidth: 1,
     borderColor: colors.rule,
+    shadowColor: '#1A2420',
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
   },
   eyebrow: {
     fontFamily: fonts.corpsSemi,
@@ -683,6 +731,14 @@ const styles = StyleSheet.create({
   },
   btnSoft: {
     backgroundColor: colors.orWash,
+  },
+  btnAmber: {
+    backgroundColor: colors.ambreVif,
+  },
+  btnOnDark: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.35)',
   },
   btnDanger: {
     backgroundColor: colors.rouge,

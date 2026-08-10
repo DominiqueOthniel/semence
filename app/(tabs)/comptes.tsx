@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApp } from '../../src/store/AppContext';
 import { createAccount, archiveAccount } from '../../src/db/database';
 import { ACCOUNT_TYPE_LABELS, type AccountType } from '../../src/types';
 import { fcfa } from '../../src/lib/money';
-import { TOUCH } from '../../src/hooks/useLayout';
+import { notify } from '../../src/lib/notify';
+import { TOUCH, useLayout } from '../../src/hooks/useLayout';
 import {
   Avatar,
   Body,
@@ -13,12 +14,14 @@ import {
   Eyebrow,
   Field,
   IconBadge,
+  PageCol,
+  PageGrid,
   Screen,
   Segment,
   SoftCard,
   Title,
 } from '../../src/ui/primitives';
-import { colors, fonts } from '../../src/theme/colors';
+import { colors, fonts, radius } from '../../src/theme/colors';
 import type { ComponentProps } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -35,6 +38,7 @@ const TYPE_ICON: Record<AccountType, IconName> = {
 
 export default function ComptesScreen() {
   const router = useRouter();
+  const { isCompact } = useLayout();
   const { accounts, refresh, position } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
@@ -42,7 +46,7 @@ export default function ComptesScreen() {
 
   async function add() {
     if (!name.trim()) {
-      Alert.alert('Nom requis', 'Donne un nom à ce compte.');
+      notify('Nom requis', 'Donne un nom à ce compte.');
       return;
     }
     await createAccount(name.trim(), type);
@@ -52,71 +56,47 @@ export default function ComptesScreen() {
   }
 
   async function remove(id: number, label: string) {
-    Alert.alert('Archiver', `Archiver « ${label} » ? L’historique est conservé.`, [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Archiver',
-        style: 'destructive',
-        onPress: async () => {
-          await archiveAccount(id);
-          await refresh();
-        },
-      },
-    ]);
+    const ok =
+      typeof window !== 'undefined' && typeof window.confirm === 'function'
+        ? window.confirm(`Archiver « ${label} » ? L’historique est conservé.`)
+        : true;
+    if (!ok) return;
+    await archiveAccount(id);
+    await refresh();
   }
 
-  return (
-    <Screen maxWidth="app" scroll keyboard>
-      <View style={styles.head}>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Eyebrow>Portefeuille</Eyebrow>
-          <Title>Comptes</Title>
-        </View>
-        <IconBadge name="wallet" size={48} />
-      </View>
-
-      <SoftCard>
-        <Text style={styles.totalLabel}>Solde consolidé</Text>
-        <Text style={styles.total}>{fcfa(position?.liquid ?? 0)}</Text>
-        <Body>Espèces, MoMo, banque : chaque compte a son solde.</Body>
-      </SoftCard>
-
-      {accounts.map((a) => (
-        <SoftCard key={a.id}>
-          <View style={styles.account}>
-            <Avatar name={a.name} size={44} icon={TYPE_ICON[a.type]} />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.accountName}>{a.name}</Text>
-              <Text style={styles.accountType}>{ACCOUNT_TYPE_LABELS[a.type]}</Text>
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.accountBal}>{fcfa(a.balance)}</Text>
-              <Pressable
-                onPress={() => remove(a.id, a.name)}
-                accessibilityRole="button"
-                accessibilityLabel={`Archiver ${a.name}`}
-                hitSlop={8}
-                style={styles.archiveBtn}
-              >
-                <Text style={styles.archive}>Archiver</Text>
-              </Pressable>
-            </View>
-          </View>
-        </SoftCard>
-      ))}
-
-      <Button label="Transfert" icon="swap-horizontal" onPress={() => router.push('/transfert')} />
-      <Button
-        label={showForm ? 'Masquer' : 'Nouveau compte'}
-        variant="ghost"
-        icon={showForm ? 'chevron-up' : 'add'}
-        onPress={() => setShowForm((v) => !v)}
-      />
-
-      {showForm && (
+  const accountList = (
+    <>
+      {accounts.length === 0 ? (
         <SoftCard>
-          <Eyebrow>Nouveau</Eyebrow>
-          <Field label="Nom" value={name} onChangeText={setName} placeholder="Compte épargne" />
+          <Eyebrow>Premier pas</Eyebrow>
+          <Body>Ajoute au moins un compte (ex. Espèces ou MoMo) pour saisir revenus et dépenses.</Body>
+        </SoftCard>
+      ) : null}
+
+      {isCompact
+        ? accounts.map((a) => (
+            <SoftCard key={a.id}>
+              <AccountRow account={a} onArchive={() => void remove(a.id, a.name)} />
+            </SoftCard>
+          ))
+        : (
+          <View style={styles.accountGrid}>
+            {accounts.map((a) => (
+              <SoftCard key={a.id} style={styles.accountTile}>
+                <AccountRow account={a} onArchive={() => void remove(a.id, a.name)} />
+              </SoftCard>
+            ))}
+          </View>
+        )}
+
+      {showForm ? (
+        <SoftCard>
+          <Eyebrow>Nouveau compte</Eyebrow>
+          <Body style={{ marginBottom: 12 }}>
+            Exemple : « Espèces maison », « MoMo perso », « Compte épargne ».
+          </Body>
+          <Field label="Nom" value={name} onChangeText={setName} placeholder="Espèces" />
           <Segment
             value={type}
             onChange={setType}
@@ -126,10 +106,131 @@ export default function ComptesScreen() {
               icon: TYPE_ICON[k],
             }))}
           />
-          <Button label="Créer" icon="checkmark" onPress={add} />
+          <Button label="Créer le compte" icon="checkmark" onPress={add} />
         </SoftCard>
-      )}
+      ) : null}
+    </>
+  );
+
+  const actions = (
+    <>
+      <Button
+        label="Transférer entre comptes"
+        icon="swap-horizontal"
+        onPress={() => router.push('/transfert')}
+        disabled={accounts.length < 2}
+      />
+      {accounts.length < 2 ? (
+        <Body style={{ marginBottom: 8 }}>Il faut au moins deux comptes pour un transfert.</Body>
+      ) : null}
+      <Button
+        label={showForm ? 'Masquer le formulaire' : 'Ajouter un compte'}
+        variant="ghost"
+        icon={showForm ? 'chevron-up' : 'add'}
+        onPress={() => setShowForm((v) => !v)}
+      />
+    </>
+  );
+
+  if (isCompact) {
+    return (
+      <Screen maxWidth="app" scroll keyboard>
+        <View style={styles.head}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Eyebrow>Où est ton argent</Eyebrow>
+            <Title>Comptes</Title>
+          </View>
+          <IconBadge name="wallet" size={48} />
+        </View>
+
+        <SoftCard style={styles.purpose}>
+          <Body>
+            Ici tu sépares ton argent réel : espèces, MTN MoMo, Orange Money, banque… Les enveloppes
+            disent comment dépenser ; les comptes disent où l’argent se trouve.
+          </Body>
+        </SoftCard>
+
+        <SoftCard>
+          <Text style={styles.totalLabel}>Solde consolidé</Text>
+          <Text style={styles.total}>{fcfa(position?.liquid ?? 0)}</Text>
+          <Body>Total disponible sur tous tes comptes actifs.</Body>
+        </SoftCard>
+
+        {accountList}
+        {actions}
+      </Screen>
+    );
+  }
+
+  return (
+    <Screen maxWidth="wide" scroll keyboard>
+      <View style={styles.headDesk}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Eyebrow>Où est ton argent</Eyebrow>
+          <Title>Comptes</Title>
+          <Body style={styles.deskHint}>
+            Solde réel par support. Les enveloppes (Accueil) gèrent le budget ; ici tu vois où
+            l’argent se trouve.
+          </Body>
+        </View>
+        <View style={styles.heroPanelInline}>
+          <Text style={styles.heroLabel}>Solde consolidé</Text>
+          <Text style={styles.heroAmount}>{fcfa(position?.liquid ?? 0)}</Text>
+          <Text style={styles.heroMeta}>
+            {accounts.length} compte{accounts.length > 1 ? 's' : ''} actif
+            {accounts.length > 1 ? 's' : ''}
+          </Text>
+        </View>
+      </View>
+
+      <PageGrid cols={2}>
+        <PageCol flex={1.4}>
+          <View style={styles.cardHeadRow}>
+            <Eyebrow>Tes comptes</Eyebrow>
+          </View>
+          {accountList}
+        </PageCol>
+        <PageCol flex={0.85}>
+          <SoftCard style={styles.actionsPanel}>
+            <Eyebrow>Actions</Eyebrow>
+            <Body style={{ marginBottom: 12 }}>
+              Transferts entre supports, ou ajout d’un nouveau compte.
+            </Body>
+            {actions}
+          </SoftCard>
+        </PageCol>
+      </PageGrid>
     </Screen>
+  );
+}
+
+function AccountRow({
+  account,
+  onArchive,
+}: {
+  account: { id: number; name: string; type: AccountType; balance: number };
+  onArchive: () => void;
+}) {
+  return (
+    <View style={styles.account}>
+      <Avatar name={account.name} size={44} icon={TYPE_ICON[account.type]} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.accountName}>{account.name}</Text>
+        <Text style={styles.accountType}>{ACCOUNT_TYPE_LABELS[account.type]}</Text>
+      </View>
+      <View style={{ alignItems: 'flex-end' }}>
+        <Text style={styles.accountBal}>{fcfa(account.balance)}</Text>
+        <Pressable
+          onPress={onArchive}
+          accessibilityRole="button"
+          accessibilityLabel={`Archiver ${account.name}`}
+          hitSlop={8}
+          style={styles.archiveBtn}
+        >
+          <Text style={styles.archive}>Archiver</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -140,6 +241,88 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 8,
     gap: 12,
+  },
+  headDesk: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 20,
+    marginBottom: 20,
+  },
+  deskHint: {
+    marginTop: 4,
+    maxWidth: 520,
+  },
+  purpose: {
+    backgroundColor: colors.orWash,
+    borderColor: colors.ruleFort,
+  },
+  heroPanel: {
+    backgroundColor: colors.panel,
+    borderRadius: radius.xl,
+    padding: 22,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(196,137,42,0.22)',
+  },
+  heroPanelInline: {
+    backgroundColor: colors.panel,
+    borderRadius: radius.xl,
+    paddingVertical: 18,
+    paddingHorizontal: 22,
+    minWidth: 260,
+    borderWidth: 1,
+    borderColor: 'rgba(196,137,42,0.22)',
+  },
+  heroLabel: {
+    fontFamily: fonts.corpsSemi,
+    fontSize: 11,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    color: colors.ambre,
+    marginBottom: 10,
+  },
+  heroAmount: {
+    fontFamily: fonts.chiffreMed,
+    fontSize: 34,
+    color: colors.white,
+    marginBottom: 8,
+  },
+  heroMeta: {
+    fontFamily: fonts.corps,
+    fontSize: 14,
+    color: colors.inkOnDark,
+  },
+  cardHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  cardHeadRow: {
+    marginBottom: 8,
+  },
+  accountGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  accountTile: {
+    width: '48%',
+    flexGrow: 1,
+    flexBasis: '46%',
+    minWidth: 220,
+    marginBottom: 0,
+  },
+  actionsPanel: {
+    minHeight: 240,
+  },
+  listCard: {
+    paddingVertical: 12,
+  },
+  listRow: {
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.rule,
   },
   totalLabel: {
     fontFamily: fonts.corpsSemi,

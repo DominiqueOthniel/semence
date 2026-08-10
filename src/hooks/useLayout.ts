@@ -12,7 +12,7 @@ export const CONTENT_WIDTH = {
   narrow: 400,
   form: 480,
   app: 720,
-  wide: 1120,
+  wide: 1320,
 } as const;
 
 /** Cible tactile minimale (Apple HIG / Material ≈ 44–48). */
@@ -29,11 +29,12 @@ export function useLayout() {
   const isWide = !isPhone;
   const isLandscape = width > height;
 
-  const gutter = isCompact ? 16 : isTablet ? 28 : 40;
-  const maxWidth = isDesktop ? CONTENT_WIDTH.wide : isTablet ? CONTENT_WIDTH.app : CONTENT_WIDTH.app;
+  const gutter = isCompact ? 16 : isTablet ? 24 : 32;
+  const maxWidth = isDesktop ? CONTENT_WIDTH.wide : isTablet ? 960 : CONTENT_WIDTH.app;
   const formWidth = isCompact ? CONTENT_WIDTH.narrow : CONTENT_WIDTH.form;
-  const columns = isWide ? 2 : 1;
-  const sidebarWidth = isDesktop ? 232 : 200;
+  /** Colonnes de contenu utile (hors sidebar). */
+  const columns = isCompact ? 1 : isDesktop ? 3 : 2;
+  const sidebarWidth = isDesktop ? 248 : 212;
 
   return {
     width,
