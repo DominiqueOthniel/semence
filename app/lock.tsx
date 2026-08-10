@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../src/store/AppContext';
 import { Avatar, Button } from '../src/ui/primitives';
 import { BrandLogo, BrandMark } from '../src/ui/BrandLogo';
-import { colors, fonts, radius, space } from '../src/theme/colors';
+import { colors, elev, fonts, radius, space } from '../src/theme/colors';
 import { TOUCH, useLayout } from '../src/hooks/useLayout';
 
 function capitalizeName(raw?: string) {
@@ -211,22 +211,28 @@ export default function LockScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.desktopRoot}>
         <LinearGradient
-          colors={['#1F4A38', '#2F6B4F', '#3F8A64']}
+          colors={['#0F241C', '#163529', '#1F4336']}
           locations={[0, 0.55, 1]}
           style={styles.desktopBrand}
         >
-          <BrandLogo size={72} style={{ tintColor: undefined }} />
+          <View style={styles.brandMarkWrap}>
+            <BrandLogo size={64} />
+          </View>
           <Text style={styles.desktopBrandWord}>Semence</Text>
+          <View style={styles.goldHair} />
           <Text style={styles.desktopBrandLine}>
             Quatre enveloppes. Un ordre fixe. Ton reste à vivre, chaque jour.
           </Text>
           <View style={styles.desktopBrandMeta}>
-            <Ionicons name="leaf-outline" size={16} color="rgba(255,255,255,0.85)" />
+            <Ionicons name="leaf-outline" size={16} color={colors.ambre} />
             <Text style={styles.desktopBrandMetaText}>Finance personnelle · FCFA · hors ligne</Text>
           </View>
         </LinearGradient>
 
-        <View style={[styles.desktopPanel, { paddingHorizontal: Math.max(gutter, 40) }]}>
+        <LinearGradient
+          colors={['#F7F4EE', colors.ground, '#EAF0EA']}
+          style={[styles.desktopPanel, { paddingHorizontal: Math.max(gutter, 40) }]}
+        >
           <View style={styles.desktopCard}>
             <View style={styles.desktopCardHead}>
               <Avatar
@@ -246,7 +252,7 @@ export default function LockScreen() {
             <Text style={styles.hintDesktop}>Saisis ton code PIN pour continuer.</Text>
             {pinBlock}
           </View>
-        </View>
+        </LinearGradient>
       </View>
     </SafeAreaView>
   );
@@ -284,27 +290,45 @@ const styles = StyleSheet.create({
   desktopBrand: {
     flex: 1.05,
     paddingHorizontal: 48,
-    paddingVertical: 48,
+    paddingVertical: 52,
     justifyContent: 'center',
     minWidth: 320,
   },
+  brandMarkWrap: {
+    width: 92,
+    height: 92,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: colors.goldLine,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   desktopBrandWord: {
-    marginTop: 18,
+    marginTop: 22,
     fontFamily: fonts.display,
-    fontSize: 44,
-    lineHeight: 52,
+    fontSize: 46,
+    lineHeight: 54,
+    letterSpacing: -0.6,
     color: colors.white,
   },
+  goldHair: {
+    marginTop: 18,
+    width: 48,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.ambre,
+  },
   desktopBrandLine: {
-    marginTop: 16,
+    marginTop: 18,
     fontFamily: fonts.corps,
-    fontSize: 18,
-    lineHeight: 28,
-    color: 'rgba(255,255,255,0.88)',
-    maxWidth: 360,
+    fontSize: 17,
+    lineHeight: 27,
+    color: 'rgba(255,255,255,0.86)',
+    maxWidth: 340,
   },
   desktopBrandMeta: {
-    marginTop: 36,
+    marginTop: 40,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -312,23 +336,23 @@ const styles = StyleSheet.create({
   desktopBrandMetaText: {
     fontFamily: fonts.corpsMed,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.75)',
+    color: 'rgba(255,255,255,0.72)',
   },
   desktopPanel: {
     flex: 1,
-    backgroundColor: colors.ground,
     justifyContent: 'center',
     alignItems: 'center',
     minWidth: 380,
   },
   desktopCard: {
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 420,
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.rule,
-    padding: 28,
+    padding: 32,
+    ...elev.card,
   },
   desktopCardHead: {
     flexDirection: 'row',

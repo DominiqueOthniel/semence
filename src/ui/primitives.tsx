@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { avatarColor, colors, fonts, initials, radius, space } from '../theme/colors';
+import { avatarColor, colors, elev, fonts, initials, radius, space } from '../theme/colors';
 import { CONTENT_WIDTH, TOUCH, useLayout } from '../hooks/useLayout';
 import { getAvatarPreset } from '../lib/avatars';
 
@@ -592,10 +592,12 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   screenScroll: {
-    flexGrow: 1,
-    flex: undefined,
+    flexGrow: 0,
+    flex: 0,
+    flexShrink: 0,
     paddingTop: 8,
-    paddingBottom: 40,
+    paddingBottom: 48,
+    width: '100%',
   },
   frame: {
     width: '100%',
@@ -607,16 +609,20 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   frameScroll: {
-    flex: undefined,
+    flex: 0,
+    flexGrow: 0,
+    flexShrink: 0,
     minHeight: undefined,
   },
   scrollHost: {
     flex: 1,
     minHeight: 0,
     width: '100%',
+    ...(Platform.OS === 'web' ? ({ overflowY: 'auto' } as object) : null),
   },
   scrollGrow: {
-    flexGrow: 1,
+    flexGrow: 0,
+    paddingBottom: 24,
   },
   pageGrid: {
     width: '100%',
@@ -636,30 +642,27 @@ const styles = StyleSheet.create({
   softCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
-    padding: space.md,
+    padding: space.md + 2,
     marginBottom: space.md,
     borderWidth: 1,
     borderColor: colors.rule,
-    shadowColor: '#1A2420',
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 1,
+    ...elev.soft,
   },
   eyebrow: {
     fontFamily: fonts.corpsSemi,
-    fontSize: 12,
-    letterSpacing: 1.4,
+    fontSize: 11,
+    letterSpacing: 1.6,
     textTransform: 'uppercase',
     color: colors.or,
     marginBottom: 8,
   },
   title: {
     fontFamily: fonts.display,
-    fontSize: 28,
+    fontSize: 30,
     color: colors.ink,
-    lineHeight: 36,
-    marginBottom: 10,
+    lineHeight: 38,
+    marginBottom: 12,
+    letterSpacing: -0.3,
   },
   titleDesktop: {
     fontSize: 34,
@@ -723,10 +726,11 @@ const styles = StyleSheet.create({
   },
   btnPrimary: {
     backgroundColor: colors.or,
+    ...elev.soft,
   },
   btnGhost: {
     backgroundColor: colors.surface,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.ruleFort,
   },
   btnSoft: {
@@ -734,18 +738,19 @@ const styles = StyleSheet.create({
   },
   btnAmber: {
     backgroundColor: colors.ambreVif,
+    ...elev.soft,
   },
   btnOnDark: {
     backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.32)',
   },
   btnDanger: {
     backgroundColor: colors.rouge,
   },
   btnPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.985 }],
+    opacity: 0.92,
+    transform: [{ scale: 0.988 }],
   },
   btnDisabled: {
     opacity: 0.45,
@@ -760,21 +765,21 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   input: {
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.rule,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSoft,
     borderRadius: radius.md,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 14,
     minHeight: TOUCH,
-    // ≥ 16px pour éviter le zoom auto navigateur mobile au focus.
     fontSize: 16,
     fontFamily: fonts.corpsMed,
     color: colors.ink,
   },
   inputFocused: {
     borderColor: colors.or,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
+    ...elev.soft,
   },
   hint: {
     fontFamily: fonts.corps,

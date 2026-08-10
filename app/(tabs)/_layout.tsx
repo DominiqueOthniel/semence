@@ -240,6 +240,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.panel,
     paddingHorizontal: 14,
     zIndex: 2,
+    borderRightWidth: 1,
+    borderRightColor: colors.goldLine,
   },
   desktopMain: {
     flex: 1,
@@ -255,9 +257,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: 12,
     marginBottom: 6,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   sideItemOn: {
     backgroundColor: colors.panelSoft,
+    borderColor: colors.goldLine,
   },
   sideIcon: {
     width: 28,
@@ -289,10 +294,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     borderRadius: radius.md,
     backgroundColor: colors.panelDeep,
+    borderWidth: 1,
+    borderColor: colors.ruleOnDark,
   },
   sideProfileName: {
     flex: 1,

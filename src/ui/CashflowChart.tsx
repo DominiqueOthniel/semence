@@ -10,7 +10,7 @@ import {
   periodCaption,
   type CashflowPeriod,
 } from '../lib/cashflow';
-import { colors, fonts, radius } from '../theme/colors';
+import { colors, elev, fonts, radius } from '../theme/colors';
 import { Eyebrow, Segment } from './primitives';
 import { useLayout } from '../hooks/useLayout';
 
@@ -313,11 +313,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     width: '100%',
     alignSelf: 'stretch',
-    shadowColor: '#1A2420',
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 2,
+    ...elev.soft,
   },
   head: {
     marginBottom: 4,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,7 +14,6 @@ import {
   Eyebrow,
   Field,
   IconBadge,
-  Screen,
   Segment,
   SoftCard,
   StepDots,
@@ -22,7 +21,7 @@ import {
 } from '../src/ui/primitives';
 import { AvatarPicker, type AvatarChoice } from '../src/ui/AvatarPicker';
 import { BrandLogo, BrandMark } from '../src/ui/BrandLogo';
-import { colors, fonts, radius } from '../src/theme/colors';
+import { colors, elev, fonts, radius } from '../src/theme/colors';
 import { useLayout } from '../src/hooks/useLayout';
 
 export default function OnboardingScreen() {
@@ -153,8 +152,18 @@ export default function OnboardingScreen() {
               keyboardType="decimal-pad"
             />
           )}
-          <Field label="Épargne (%)" value={epargneRate} onChangeText={setEpargneRate} keyboardType="number-pad" />
-          <Field label="Semence (%)" value={semenceRate} onChangeText={setSemenceRate} keyboardType="number-pad" />
+          <Field
+            label="Épargne (%)"
+            value={epargneRate}
+            onChangeText={setEpargneRate}
+            keyboardType="number-pad"
+          />
+          <Field
+            label="Semence (%)"
+            value={semenceRate}
+            onChangeText={setSemenceRate}
+            keyboardType="number-pad"
+          />
           <Field
             label="Premier jour du mois budgétaire"
             value={monthStart}
@@ -229,32 +238,57 @@ export default function OnboardingScreen() {
 
   if (isCompact) {
     return (
-      <Screen maxWidth="form" scroll keyboard>
-        <BrandMark size={42} style={{ marginBottom: 18 }} />
-        {form}
-      </Screen>
+      <SafeAreaView style={styles.compactSafe} edges={['top', 'left', 'right', 'bottom']}>
+        <ScrollView
+          style={styles.scrollFlex}
+          contentContainerStyle={[styles.compactPad, { paddingHorizontal: gutter }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator
+          bounces
+        >
+          <BrandMark size={42} style={{ marginBottom: 18 }} />
+          {form}
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.desktopSafe} edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.desktopRoot}>
-        <LinearGradient colors={['#1F4A38', '#2F6B4F', '#3F8A64']} style={styles.desktopBrand}>
-          <BrandLogo size={68} />
+        <LinearGradient
+          colors={['#0F241C', '#163529', '#1F4336']}
+          locations={[0, 0.45, 1]}
+          style={styles.desktopBrand}
+        >
+          <View style={styles.brandMarkWrap}>
+            <BrandLogo size={64} />
+          </View>
           <Text style={styles.desktopWord}>Semence</Text>
+          <View style={styles.goldHair} />
           <Text style={styles.desktopPitch}>
             Semer avant de dépenser. Don, épargne, semence, puis courant.
           </Text>
           <Text style={styles.desktopStep}>Étape {step + 1} sur 3</Text>
         </LinearGradient>
-        <ScrollView
-          style={styles.desktopFormScroll}
-          contentContainerStyle={[styles.desktopForm, { paddingHorizontal: Math.max(gutter, 36) }]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+        <LinearGradient
+          colors={['#F7F4EE', colors.ground, '#EAF0EA']}
+          locations={[0, 0.5, 1]}
+          style={styles.scrollFlex}
         >
-          <View style={styles.desktopFormCard}>{form}</View>
-        </ScrollView>
+          <ScrollView
+            style={styles.scrollFlex}
+            contentContainerStyle={[
+              styles.desktopForm,
+              { paddingHorizontal: Math.max(gutter, 40) },
+            ]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator
+            bounces
+          >
+            <View style={styles.desktopFormCard}>{form}</View>
+          </ScrollView>
+        </LinearGradient>
       </View>
     </SafeAreaView>
   );
@@ -296,60 +330,93 @@ const styles = StyleSheet.create({
     gap: 14,
     marginBottom: 22,
   },
+  compactSafe: {
+    flex: 1,
+    backgroundColor: colors.ground,
+    minHeight: 0,
+  },
+  scrollFlex: {
+    flex: 1,
+    minHeight: 0,
+    ...(Platform.OS === 'web' ? ({ overflowY: 'auto' } as object) : null),
+  },
+  compactPad: {
+    paddingTop: 12,
+    paddingBottom: 48,
+    flexGrow: 0,
+  },
   desktopSafe: {
     flex: 1,
     backgroundColor: colors.ground,
+    minHeight: 0,
   },
   desktopRoot: {
     flex: 1,
     flexDirection: 'row',
+    minHeight: 0,
   },
   desktopBrand: {
-    flex: 1,
-    minWidth: 300,
-    maxWidth: 480,
-    paddingHorizontal: 48,
-    paddingVertical: 48,
+    width: '38%',
+    maxWidth: 440,
+    minWidth: 280,
+    paddingHorizontal: 44,
+    paddingVertical: 52,
+    justifyContent: 'center',
+  },
+  brandMarkWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: colors.goldLine,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   desktopWord: {
-    marginTop: 18,
+    marginTop: 22,
     fontFamily: fonts.display,
-    fontSize: 44,
+    fontSize: 46,
+    letterSpacing: -0.6,
     color: colors.white,
   },
+  goldHair: {
+    marginTop: 18,
+    width: 48,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.ambre,
+  },
   desktopPitch: {
-    marginTop: 16,
+    marginTop: 18,
     fontFamily: fonts.corps,
-    fontSize: 18,
-    lineHeight: 28,
-    color: 'rgba(255,255,255,0.88)',
-    maxWidth: 340,
+    fontSize: 17,
+    lineHeight: 27,
+    color: 'rgba(255,255,255,0.86)',
+    maxWidth: 320,
   },
   desktopStep: {
-    marginTop: 40,
+    marginTop: 44,
     fontFamily: fonts.corpsSemi,
-    fontSize: 13,
-    letterSpacing: 1,
+    fontSize: 12,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
-    color: 'rgba(255,255,255,0.7)',
-  },
-  desktopFormScroll: {
-    flex: 1.15,
+    color: colors.ambre,
   },
   desktopForm: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingVertical: 32,
+    paddingTop: 40,
+    paddingBottom: 64,
+    flexGrow: 0,
   },
   desktopFormCard: {
     width: '100%',
-    maxWidth: 480,
+    maxWidth: 560,
     alignSelf: 'center',
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.rule,
-    padding: 28,
+    padding: 36,
+    ...elev.card,
   },
 });
