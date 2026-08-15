@@ -139,13 +139,44 @@ export function cashflowForPeriod(
   transactions: Transaction[],
   period: CashflowPeriod,
   now = new Date(),
+  cycleRange?: { fromISO: string; toISO: string; lastISO: string },
 ): CashflowPoint[] {
   if (period === 'hebdo') return weeklyCashflow(transactions, now);
-  if (period === 'mensuel') return monthlyDaysCashflow(transactions, now);
+  if (period === 'mensuel') {
+    if (cycleRange) return cycleDaysCashflow(transactions, cycleRange);
+    return monthlyDaysCashflow(transactions, now);
+  }
   return yearlyCashflow(transactions, now.getFullYear());
 }
 
-export function periodCaption(period: CashflowPeriod, now = new Date()): string {
+/** Jours d’un cycle budgétaire (du jour de salaire au suivant). */
+export function cycleDaysCashflow(
+  transactions: Transaction[],
+  cycle: { fromISO: string; toISO: string; lastISO: string },
+): CashflowPoint[] {
+  const from = parseTxDate(cycle.fromISO);
+  const last = parseTxDate(cycle.lastISO);
+  if (!from || !last) return monthlyDaysCashflow(transactions);
+  const rows: CashflowPoint[] = [];
+  for (let d = new Date(from); d.getTime() <= last.getTime(); d.setDate(d.getDate() + 1)) {
+    const key = isoDay(d);
+    rows.push(emptyPoint(key, String(d.getDate()), String(d.getDate())));
+  }
+  const index = new Map(rows.map((r, i) => [r.key, i]));
+  for (const tx of transactions) {
+    const day = tx.date.slice(0, 10);
+    const i = index.get(day);
+    if (i == null) continue;
+    addTx(rows[i], tx);
+  }
+  return rows;
+}
+
+export function periodCaption(
+  period: CashflowPeriod,
+  now = new Date(),
+  cycleRange?: { rangeLabel: string; year: number },
+): string {
   if (period === 'hebdo') {
     const mon = startOfWeekMonday(now);
     const sun = new Date(mon);
@@ -156,8 +187,8 @@ export function periodCaption(period: CashflowPeriod, now = new Date()): string 
     }
     return `Lun ${mon.getDate()} ${MONTH_SHORT[mon.getMonth()]} – Dim ${sun.getDate()} ${MONTH_SHORT[sun.getMonth()]}`;
   }
-  if (period === 'mensuel') return MONTH_LABELS[now.getMonth()];
-  return `Année ${now.getFullYear()}`;
+  if (period === 'mensuel') return cycleRange?.rangeLabel ?? MONTH_LABELS[now.getMonth()];
+  return `Année ${cycleRange?.year ?? now.getFullYear()}`;
 }
 
 export function niceAxisMax(values: number[]): number {

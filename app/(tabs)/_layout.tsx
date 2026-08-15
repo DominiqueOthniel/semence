@@ -4,9 +4,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, radius } from '../../src/theme/colors';
 import { TOUCH, useLayout } from '../../src/hooks/useLayout';
-import { BrandMark } from '../../src/ui/BrandLogo';
+import { BrandLockup } from '../../src/ui/BrandLogo';
 import { useApp } from '../../src/store/AppContext';
 import { Avatar } from '../../src/ui/primitives';
+import { BotanicalField } from '../../src/ui/BotanicalMotif';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -93,11 +94,11 @@ function DesktopShell() {
           },
         ]}
       >
-        <BrandMark
-          size={38}
-          inverted
-          tagline="Faire fructifier vos finances"
-          style={{ marginBottom: 32, paddingHorizontal: 8 }}
+        <BotanicalField variant="dark" density="panel" />
+        <BrandLockup
+          height={132}
+          tagline={'Faire fructifier\nvos finances'}
+          style={styles.sideBrand}
         />
         {DESKTOP_LINKS.map((link) => {
           const focused = isActive(pathname, link.match);
@@ -242,6 +243,8 @@ const styles = StyleSheet.create({
     zIndex: 2,
     borderRightWidth: 1,
     borderRightColor: colors.goldLine,
+    position: 'relative',
+    overflow: 'hidden',
   },
   desktopMain: {
     flex: 1,
@@ -249,6 +252,12 @@ const styles = StyleSheet.create({
     minHeight: 0,
     backgroundColor: colors.ground,
     overflow: 'hidden',
+    position: 'relative',
+  },
+  sideBrand: {
+    marginBottom: 30,
+    paddingHorizontal: 8,
+    zIndex: 1,
   },
   sideItem: {
     flexDirection: 'row',
@@ -259,6 +268,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     borderWidth: 1,
     borderColor: 'transparent',
+    zIndex: 1,
   },
   sideItemOn: {
     backgroundColor: colors.panelSoft,
@@ -284,6 +294,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     marginBottom: 14,
+    zIndex: 1,
   },
   sideSecureText: {
     fontFamily: fonts.corps,
@@ -300,6 +311,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.panelDeep,
     borderWidth: 1,
     borderColor: colors.ruleOnDark,
+    zIndex: 1,
   },
   sideProfileName: {
     flex: 1,

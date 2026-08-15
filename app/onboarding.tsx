@@ -20,9 +20,10 @@ import {
   Title,
 } from '../src/ui/primitives';
 import { AvatarPicker, type AvatarChoice } from '../src/ui/AvatarPicker';
-import { BrandLogo, BrandMark } from '../src/ui/BrandLogo';
+import { BrandLockup } from '../src/ui/BrandLogo';
 import { colors, elev, fonts, radius } from '../src/theme/colors';
 import { useLayout } from '../src/hooks/useLayout';
+import { BotanicalField } from '../src/ui/BotanicalMotif';
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -239,14 +240,15 @@ export default function OnboardingScreen() {
   if (isCompact) {
     return (
       <SafeAreaView style={styles.compactSafe} edges={['top', 'left', 'right', 'bottom']}>
+        <BotanicalField variant="light" density="screen" />
         <ScrollView
-          style={styles.scrollFlex}
+          style={[styles.scrollFlex, styles.foreground]}
           contentContainerStyle={[styles.compactPad, { paddingHorizontal: gutter }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator
           bounces
         >
-          <BrandMark size={42} style={{ marginBottom: 18 }} />
+          <BrandLockup height={104} style={{ marginBottom: 18 }} />
           {form}
         </ScrollView>
       </SafeAreaView>
@@ -261,23 +263,24 @@ export default function OnboardingScreen() {
           locations={[0, 0.45, 1]}
           style={styles.desktopBrand}
         >
-          <View style={styles.brandMarkWrap}>
-            <BrandLogo size={64} />
+          <BotanicalField variant="dark" density="panel" />
+          <View style={styles.foreground}>
+            <BrandLockup height={210} align="left" />
+            <View style={styles.goldHair} />
+            <Text style={styles.desktopPitch}>
+              Semer avant de dépenser. Don, épargne, semence, puis courant.
+            </Text>
+            <Text style={styles.desktopStep}>Étape {step + 1} sur 3</Text>
           </View>
-          <Text style={styles.desktopWord}>Semence</Text>
-          <View style={styles.goldHair} />
-          <Text style={styles.desktopPitch}>
-            Semer avant de dépenser. Don, épargne, semence, puis courant.
-          </Text>
-          <Text style={styles.desktopStep}>Étape {step + 1} sur 3</Text>
         </LinearGradient>
         <LinearGradient
           colors={['#F7F4EE', colors.ground, '#EAF0EA']}
           locations={[0, 0.5, 1]}
           style={styles.scrollFlex}
         >
+          <BotanicalField variant="light" density="screen" />
           <ScrollView
-            style={styles.scrollFlex}
+            style={[styles.scrollFlex, styles.foreground]}
             contentContainerStyle={[
               styles.desktopForm,
               { paddingHorizontal: Math.max(gutter, 40) },
@@ -334,10 +337,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.ground,
     minHeight: 0,
+    position: 'relative',
+  },
+  foreground: {
+    zIndex: 1,
   },
   scrollFlex: {
     flex: 1,
     minHeight: 0,
+    position: 'relative',
     ...(Platform.OS === 'web' ? ({ overflowY: 'auto' } as object) : null),
   },
   compactPad: {
@@ -362,23 +370,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 44,
     paddingVertical: 52,
     justifyContent: 'center',
-  },
-  brandMarkWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: colors.goldLine,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  desktopWord: {
-    marginTop: 22,
-    fontFamily: fonts.display,
-    fontSize: 46,
-    letterSpacing: -0.6,
-    color: colors.white,
+    position: 'relative',
+    overflow: 'hidden',
   },
   goldHair: {
     marginTop: 18,

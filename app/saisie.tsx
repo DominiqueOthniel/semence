@@ -16,7 +16,7 @@ export default function SaisieScreen() {
   const isIncome = mode === 'revenu';
   const navigation = useNavigation();
   const router = useRouter();
-  const { accounts, settings, favorites, refresh } = useApp();
+  const { accounts, settings, favorites, refresh, goToCurrentCycle } = useApp();
 
   const [accountId, setAccountId] = useState<number | null>(null);
   const [amount, setAmount] = useState('');
@@ -49,6 +49,7 @@ export default function SaisieScreen() {
       await addExpense(accountId, value, envelope, note || 'Dépense');
     }
     await refresh();
+    goToCurrentCycle();
     router.back();
   }
 

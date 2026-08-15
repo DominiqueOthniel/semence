@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { LayoutChangeEvent, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, ClipPath, Defs, G, Line, Polyline, Rect, Text as SvgText } from 'react-native-svg';
 import type { Transaction } from '../types';
@@ -10,6 +10,7 @@ import {
   periodCaption,
   type CashflowPeriod,
 } from '../lib/cashflow';
+import { parseISODate, type Cycle } from '../lib/cycle';
 import { colors, elev, fonts, radius } from '../theme/colors';
 import { Eyebrow, Segment } from './primitives';
 import { useLayout } from '../hooks/useLayout';
@@ -17,19 +18,37 @@ import { useLayout } from '../hooks/useLayout';
 const REVENU_COLOR = colors.chartRevenu;
 const DEPENSE_COLOR = colors.chartDepense;
 
-export function CashflowChart({ transactions }: { transactions: Transaction[] }) {
+export function CashflowChart({
+  transactions,
+  cycle,
+}: {
+  transactions: Transaction[];
+  cycle?: Cycle;
+}) {
   const { isCompact } = useLayout();
   const [period, setPeriod] = useState<CashflowPeriod>(isCompact ? 'hebdo' : 'annuel');
   const [boxW, setBoxW] = useState(0);
 
-  const series = useMemo(() => cashflowForPeriod(transactions, period), [transactions, period]);
+  useEffect(() => {
+    if (cycle && cycle.status !== 'en_cours') setPeriod('mensuel');
+  }, [cycle?.key, cycle?.status]);
+
+  const at = useMemo(
+    () => (cycle && cycle.status !== 'en_cours' ? parseISODate(cycle.lastISO) : new Date()),
+    [cycle?.lastISO, cycle?.status],
+  );
+
+  const series = useMemo(
+    () => cashflowForPeriod(transactions, period, at, cycle),
+    [transactions, period, cycle, at],
+  );
   const maxY = useMemo(
     () => niceAxisMax(series.flatMap((r) => [r.revenus, r.depenses])),
     [series],
   );
   const ticks = useMemo(() => axisTicks(maxY, 5), [maxY]);
   const hasData = series.some((r) => r.revenus > 0 || r.depenses > 0);
-  const caption = periodCaption(period);
+  const caption = periodCaption(period, at, cycle);
   const useBars = period === 'annuel' || period === 'mensuel';
 
   const pad = {
@@ -83,7 +102,7 @@ export function CashflowChart({ transactions }: { transactions: Transaction[] })
     period === 'hebdo'
       ? 'Pas d’opérations cette semaine (lundi → dimanche).'
       : period === 'mensuel'
-        ? 'Pas encore d’opérations ce mois-ci.'
+        ? 'Pas encore d’opérations sur ce cycle.'
         : 'Pas encore d’opérations cette année.';
 
   const chart = boxW > 0 ? (
@@ -266,7 +285,7 @@ export function CashflowChart({ transactions }: { transactions: Transaction[] })
         onChange={setPeriod}
         options={[
           { value: 'hebdo', label: 'Semaine', icon: 'calendar-outline' },
-          { value: 'mensuel', label: 'Mois', icon: 'calendar' },
+          { value: 'mensuel', label: 'Cycle', icon: 'leaf-outline' },
           { value: 'annuel', label: 'Année', icon: 'stats-chart-outline' },
         ]}
       />

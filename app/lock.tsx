@@ -13,9 +13,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../src/store/AppContext';
 import { Avatar, Button } from '../src/ui/primitives';
-import { BrandLogo, BrandMark } from '../src/ui/BrandLogo';
+import { BrandLockup } from '../src/ui/BrandLogo';
 import { colors, elev, fonts, radius, space } from '../src/theme/colors';
 import { TOUCH, useLayout } from '../src/hooks/useLayout';
+import { BotanicalField } from '../src/ui/BotanicalMotif';
 
 function capitalizeName(raw?: string) {
   if (!raw) return '';
@@ -176,13 +177,14 @@ export default function LockScreen() {
           locations={[0, 0.45, 1]}
           style={styles.fill}
         >
+          <BotanicalField variant="light" density="screen" />
           <KeyboardAvoidingView
-            style={styles.fill}
+            style={[styles.fill, styles.foreground]}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
             <View style={[styles.mobilePage, { paddingHorizontal: gutter }]}>
               <View style={styles.mobileTop}>
-                <BrandMark size={40} />
+                <BrandLockup height={96} />
               </View>
               <View style={styles.mobileMiddle}>
                 <Avatar
@@ -215,17 +217,17 @@ export default function LockScreen() {
           locations={[0, 0.55, 1]}
           style={styles.desktopBrand}
         >
-          <View style={styles.brandMarkWrap}>
-            <BrandLogo size={64} />
-          </View>
-          <Text style={styles.desktopBrandWord}>Semence</Text>
-          <View style={styles.goldHair} />
-          <Text style={styles.desktopBrandLine}>
-            Quatre enveloppes. Un ordre fixe. Ton reste à vivre, chaque jour.
-          </Text>
-          <View style={styles.desktopBrandMeta}>
-            <Ionicons name="leaf-outline" size={16} color={colors.ambre} />
-            <Text style={styles.desktopBrandMetaText}>Finance personnelle · FCFA · hors ligne</Text>
+          <BotanicalField variant="dark" density="panel" />
+          <View style={styles.foreground}>
+            <BrandLockup height={210} align="left" />
+            <View style={styles.goldHair} />
+            <Text style={styles.desktopBrandLine}>
+              Quatre enveloppes. Un ordre fixe. Ton reste à vivre, chaque jour.
+            </Text>
+            <View style={styles.desktopBrandMeta}>
+              <Ionicons name="leaf-outline" size={16} color={colors.ambre} />
+              <Text style={styles.desktopBrandMetaText}>Finance personnelle · FCFA · hors ligne</Text>
+            </View>
           </View>
         </LinearGradient>
 
@@ -233,7 +235,8 @@ export default function LockScreen() {
           colors={['#F7F4EE', colors.ground, '#EAF0EA']}
           style={[styles.desktopPanel, { paddingHorizontal: Math.max(gutter, 40) }]}
         >
-          <View style={styles.desktopCard}>
+          <BotanicalField variant="light" density="screen" />
+          <View style={[styles.desktopCard, styles.foreground]}>
             <View style={styles.desktopCardHead}>
               <Avatar
                 name={settings?.name || 'Toi'}
@@ -265,6 +268,10 @@ const styles = StyleSheet.create({
   },
   fill: {
     flex: 1,
+    position: 'relative',
+  },
+  foreground: {
+    zIndex: 1,
   },
   mobilePage: {
     flex: 1,
@@ -293,24 +300,8 @@ const styles = StyleSheet.create({
     paddingVertical: 52,
     justifyContent: 'center',
     minWidth: 320,
-  },
-  brandMarkWrap: {
-    width: 92,
-    height: 92,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: colors.goldLine,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  desktopBrandWord: {
-    marginTop: 22,
-    fontFamily: fonts.display,
-    fontSize: 46,
-    lineHeight: 54,
-    letterSpacing: -0.6,
-    color: colors.white,
+    position: 'relative',
+    overflow: 'hidden',
   },
   goldHair: {
     marginTop: 18,
@@ -343,6 +334,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     minWidth: 380,
+    position: 'relative',
   },
   desktopCard: {
     width: '100%',

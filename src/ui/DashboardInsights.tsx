@@ -14,11 +14,15 @@ export function DashboardInsights({
   daysLeft,
   resteAVivre,
   envelopes,
+  closed,
+  cycleLabel,
 }: {
   perDay: number;
   daysLeft: number;
   resteAVivre: number;
   envelopes: EnvelopeInsight[];
+  closed?: boolean;
+  cycleLabel?: string;
 }) {
   const over = envelopes.filter((e) => e.budget > 0 && e.spent > e.budget);
   const near = envelopes.filter((e) => {
@@ -27,8 +31,7 @@ export function DashboardInsights({
     return pct >= 0.85 && pct <= 1;
   });
 
-  const pace =
-    daysLeft > 0 ? Math.round(resteAVivre / daysLeft) : 0;
+  const pace = daysLeft > 0 ? Math.round(resteAVivre / daysLeft) : 0;
   const projection =
     daysLeft > 0 ? Math.max(0, resteAVivre - perDay * Math.max(0, daysLeft - 1)) : resteAVivre;
 
@@ -36,17 +39,33 @@ export function DashboardInsights({
     <SoftCard>
       <View style={styles.head}>
         <IconBadge name="bulb-outline" bg={colors.ambreWash} color={colors.ambre} />
-        <Eyebrow>Lecture du mois</Eyebrow>
+        <Eyebrow>{closed ? 'Lecture du cycle' : 'Lecture du mois'}</Eyebrow>
       </View>
 
-      <Text style={styles.line}>
-        Rythme conseillé : <Text style={styles.strong}>{fcfa(pace)}</Text> / jour pour tenir jusqu’à
-        la fin du mois budgétaire.
-      </Text>
-      <Text style={[styles.line, { marginTop: 8 }]}>
-        Si tu gardes le rythme actuel, il resterait environ{' '}
-        <Text style={styles.strong}>{fcfa(Math.max(0, projection))}</Text> en courant.
-      </Text>
+      {closed ? (
+        <>
+          <Text style={styles.line}>
+            {cycleLabel ? `${cycleLabel} est clos. ` : 'Ce cycle est clos. '}
+            Courant consommé : <Text style={styles.strong}>{fcfa(Math.max(0, envelopes.find((e) => e.label === 'Courant')?.spent ?? 0))}</Text>
+            {' sur '}
+            <Text style={styles.strong}>{fcfa(envelopes.find((e) => e.label === 'Courant')?.budget ?? 0)}</Text>.
+          </Text>
+          <Text style={[styles.line, { marginTop: 8 }]}>
+            Il restait <Text style={styles.strong}>{fcfa(resteAVivre)}</Text> d’enveloppe courant à la clôture.
+          </Text>
+        </>
+      ) : (
+        <>
+          <Text style={styles.line}>
+            Rythme conseillé : <Text style={styles.strong}>{fcfa(pace)}</Text> / jour pour tenir jusqu’à
+            la fin du cycle.
+          </Text>
+          <Text style={[styles.line, { marginTop: 8 }]}>
+            Si tu gardes le rythme actuel, il resterait environ{' '}
+            <Text style={styles.strong}>{fcfa(Math.max(0, projection))}</Text> en courant.
+          </Text>
+        </>
+      )}
 
       {over.length > 0 ? (
         <View style={styles.alert}>

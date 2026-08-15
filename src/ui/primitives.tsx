@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { avatarColor, colors, elev, fonts, initials, radius, space } from '../theme/colors';
 import { CONTENT_WIDTH, TOUCH, useLayout } from '../hooks/useLayout';
 import { getAvatarPreset } from '../lib/avatars';
+import { BotanicalField } from './BotanicalMotif';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -239,7 +240,8 @@ export function Screen({
 
   return (
     <SafeAreaView style={styles.safe} edges={isCompact ? ['top', 'left', 'right'] : ['left', 'right']}>
-      {body}
+      <BotanicalField variant="light" density="screen" />
+      <View style={styles.safeBody}>{body}</View>
     </SafeAreaView>
   );
 }
@@ -579,10 +581,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.ground,
     minHeight: 0,
+    position: 'relative',
+  },
+  safeBody: {
+    flex: 1,
+    minHeight: 0,
+    zIndex: 1,
   },
   screen: {
     flex: 1,
-    backgroundColor: colors.ground,
+    backgroundColor: 'transparent',
     width: '100%',
     alignItems: 'center',
     minHeight: 0,

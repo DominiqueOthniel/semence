@@ -14,6 +14,7 @@ import type {
 } from '../types';
 import { DEFAULT_RATES } from '../types';
 import { nowISO, todayISO } from '../lib/money';
+import { cycleAtOffset } from '../lib/cycle';
 
 const KEY = 'semence.v1';
 
@@ -398,28 +399,43 @@ export async function listTransactionsForYear(year = new Date().getFullYear()): 
 }
 
 export async function spentCourantThisMonth(monthStartDay: number): Promise<number> {
-  return envelopeSpent('courant', monthStartDay);
+  const cycle = cycleAtOffset(monthStartDay, 0);
+  return envelopeSpentInRange('courant', cycle.fromISO, cycle.toISO);
 }
 
 export async function envelopeSpent(kind: EnvelopeKind, monthStartDay: number): Promise<number> {
+  const cycle = cycleAtOffset(monthStartDay, 0);
+  return envelopeSpentInRange(kind, cycle.fromISO, cycle.toISO);
+}
+
+export async function envelopeSpentInRange(
+  kind: EnvelopeKind,
+  fromISO: string,
+  toISOExclusive: string,
+): Promise<number> {
   const store = await load();
-  const from = budgetMonthStart(monthStartDay);
   return store.transactions
-    .filter((t) => t.type === 'depense' && t.envelope === kind && t.date >= from)
+    .filter(
+      (t) =>
+        t.type === 'depense' &&
+        t.envelope === kind &&
+        t.date.slice(0, 10) >= fromISO &&
+        t.date.slice(0, 10) < toISOExclusive,
+    )
     .reduce((s, t) => s + t.amount, 0);
 }
 
-function budgetMonthStart(monthStartDay: number): string {
-  const now = new Date();
-  const day = now.getDate();
-  let start = new Date(now.getFullYear(), now.getMonth(), monthStartDay);
-  if (day < monthStartDay) {
-    start = new Date(now.getFullYear(), now.getMonth() - 1, monthStartDay);
-  }
-  const y = start.getFullYear();
-  const m = String(start.getMonth() + 1).padStart(2, '0');
-  const d = String(start.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+export async function listTransactionsInRange(
+  fromISO: string,
+  toISOExclusive: string,
+  limit = 80,
+): Promise<Transaction[]> {
+  const store = await load();
+  return store.transactions
+    .filter((t) => t.date.slice(0, 10) >= fromISO && t.date.slice(0, 10) < toISOExclusive)
+    .slice()
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id))
+    .slice(0, limit);
 }
 
 export async function listCategories(): Promise<Category[]> {

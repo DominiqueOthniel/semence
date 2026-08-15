@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { Profil } from '../types';
 import { versetDuJour, versetEyebrow } from '../lib/versets';
 import { colors, fonts, radius } from '../theme/colors';
+import { BrandWatermark } from './BrandLogo';
 import { Eyebrow, IconBadge, SoftCard } from './primitives';
 
 export function VersetCard({
@@ -27,6 +28,7 @@ export function VersetCard({
   if (variant === 'amber') {
     return (
       <View style={styles.amberBox}>
+        <BrandWatermark size={92} opacity={0.16} />
         <Text style={styles.amberText}>« {v.text} »</Text>
         <Text style={styles.amberRef}>{v.ref}</Text>
       </View>
@@ -99,6 +101,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ambreWash,
     borderRadius: radius.md,
     padding: 14,
+    position: 'relative',
+    overflow: 'hidden',
   },
   amberText: {
     fontFamily: fonts.displayItalic,

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../../src/store/AppContext';
 import { addExpense, markEveningDone } from '../../src/db/database';
@@ -29,7 +29,8 @@ type DraftLine = { id: string; label: string; amount: number };
 
 export default function SoirScreen() {
   const { isCompact } = useLayout();
-  const { settings, accounts, favorites, envelopes, eveningDone, streak, refresh } = useApp();
+  const { settings, accounts, favorites, envelopes, eveningDone, streak, refresh, cycle, goToCurrentCycle } =
+    useApp();
   const [drafts, setDrafts] = useState<DraftLine[]>([]);
   const [extra, setExtra] = useState('');
   const [note, setNote] = useState('');
@@ -41,6 +42,10 @@ export default function SoirScreen() {
     () => drafts.reduce((s, d) => s + d.amount, 0) + parseFcfaInput(extra),
     [drafts, extra],
   );
+
+  useEffect(() => {
+    if (cycle.status !== 'en_cours') goToCurrentCycle();
+  }, [cycle.status, goToCurrentCycle]);
 
   if (!settings || !envelopes) return null;
 

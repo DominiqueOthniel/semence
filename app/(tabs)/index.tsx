@@ -22,6 +22,8 @@ import { CashflowChart } from '../../src/ui/CashflowChart';
 import { DashboardInsights } from '../../src/ui/DashboardInsights';
 import { VersetCard } from '../../src/ui/VersetCard';
 import { colors, fonts, radius } from '../../src/theme/colors';
+import { BotanicalField } from '../../src/ui/BotanicalMotif';
+import { CycleSwitch } from '../../src/ui/CycleSwitch';
 
 function capitalizeFirst(raw?: string) {
   if (!raw) return '';
@@ -33,8 +35,19 @@ function capitalizeFirst(raw?: string) {
 export default function HomeScreen() {
   const router = useRouter();
   const { gutter, isCompact, isWide } = useLayout();
-  const { settings, envelopes, position, creditYear, eveningDone, transactions, yearTransactions } =
-    useApp();
+  const {
+    settings,
+    envelopes,
+    position,
+    creditYear,
+    eveningDone,
+    transactions,
+    yearTransactions,
+    cycle,
+    shiftCycle,
+    setCycleOffset,
+    goToCurrentCycle,
+  } = useApp();
   if (!settings || !envelopes || !position) return null;
 
   const donLabel = DON_LABELS[settings.profil];
@@ -43,13 +56,14 @@ export default function HomeScreen() {
   const firstName = capitalizeFirst(settings.name);
 
   const yearIncome = yearTransactions
-    .filter((t) => t.type === 'revenu')
+    .filter((t) => t.type === 'revenu' && t.date.startsWith(`${cycle.year}-`))
     .reduce((s, t) => s + t.amount, 0);
   const yearExpense = yearTransactions
-    .filter((t) => t.type === 'depense')
+    .filter((t) => t.type === 'depense' && t.date.startsWith(`${cycle.year}-`))
     .reduce((s, t) => s + t.amount, 0);
   const savingsRate =
     yearIncome > 0 ? Math.max(0, Math.round(((yearIncome - yearExpense) / yearIncome) * 100)) : 0;
+  const isLive = cycle.status === 'en_cours';
 
   const envelopesCard = (
     <SoftCard
@@ -71,7 +85,7 @@ export default function HomeScreen() {
     >
       <View style={styles.cardHead}>
         <IconBadge name="layers-outline" />
-        <Eyebrow>Enveloppes du mois</Eyebrow>
+        <Eyebrow>Enveloppes du cycle</Eyebrow>
       </View>
       {settings.profil !== 'aucun' && donLabel ? (
         <EnvelopeLine
@@ -151,10 +165,10 @@ export default function HomeScreen() {
     <SoftCard style={{ marginBottom: 8 }}>
       <View style={styles.cardHead}>
         <IconBadge name="time-outline" />
-        <Eyebrow>Activité récente</Eyebrow>
+        <Eyebrow>{isLive ? 'Activité récente' : `Opérations · ${cycle.short} ${cycle.year}`}</Eyebrow>
       </View>
       {transactions.length === 0 ? (
-        <Body>Aucune opération pour l’instant.</Body>
+        <Body>Aucune opération sur ce cycle.</Body>
       ) : (
         transactions.slice(0, isWide ? 10 : 6).map((t, i, arr) => (
           <Row
@@ -190,13 +204,26 @@ export default function HomeScreen() {
       </SoftCard>
     ) : null;
 
-  const chartCard = <CashflowChart transactions={yearTransactions} />;
+  const chartCard = <CashflowChart transactions={yearTransactions} cycle={cycle} />;
+
+  const cycleSwitch = (
+    <CycleSwitch
+      cycle={cycle}
+      monthStartDay={settings.monthStartDay}
+      daysLeft={envelopes.daysLeft}
+      onShift={shiftCycle}
+      onSelectOffset={setCycleOffset}
+      onNow={goToCurrentCycle}
+    />
+  );
 
   const insightsCard = (
     <DashboardInsights
       perDay={envelopes.perDay}
       daysLeft={envelopes.daysLeft}
       resteAVivre={envelopes.resteAVivre}
+      closed={!isLive}
+      cycleLabel={cycle.label}
       envelopes={[
         ...(settings.profil !== 'aucun' && donLabel
           ? [{ label: donLabel, spent: envelopes.donSpent, budget: envelopes.donBudget }]
@@ -229,11 +256,25 @@ export default function HomeScreen() {
     </View>
   );
 
+  const cycleRecap = (
+    <View style={styles.recapRow}>
+      <View style={styles.recapItem}>
+        <Text style={styles.darkMeta}>Entré</Text>
+        <Text style={styles.recapValue}>{fcfa(envelopes.cycleIncome)}</Text>
+      </View>
+      <View style={styles.recapDivider} />
+      <View style={styles.recapItem}>
+        <Text style={styles.darkMeta}>Sorti</Text>
+        <Text style={styles.recapValue}>{fcfa(envelopes.cycleExpense)}</Text>
+      </View>
+    </View>
+  );
+
   if (isCompact) {
     return (
       <Screen padded={false} maxWidth="app" scroll>
         <LinearGradient
-          colors={[colors.groundDeep, colors.ground, colors.ground]}
+          colors={['rgba(228,237,227,0.5)', 'rgba(241,238,230,0.18)', 'rgba(247,244,238,0.06)']}
           locations={[0, 0.55, 1]}
           style={[styles.heroMobile, { paddingHorizontal: gutter }]}
         >
@@ -251,16 +292,25 @@ export default function HomeScreen() {
             {firstName ? `, ${firstName}` : ''}.
           </Text>
           <View style={styles.darkCardMobile}>
-            <Text style={styles.darkLabel}>Reste à vivre aujourd’hui</Text>
-            <Text style={styles.darkAmount}>{fcfa(Math.max(0, envelopes.perDay))}</Text>
-            <Text style={styles.darkMeta}>
-              {envelopes.daysLeft} jour{envelopes.daysLeft > 1 ? 's' : ''} restants ·{' '}
-              {fcfa(envelopes.resteAVivre)} de courant
-            </Text>
-            {ctas}
+            <BotanicalField variant="dark" density="card" style={{ borderRadius: radius.xl }} />
+            <View style={styles.cardForeground}>
+              <Text style={styles.darkLabel}>
+                {isLive ? 'Reste à vivre aujourd’hui' : `Cycle ${cycle.short} ${cycle.year}`}
+              </Text>
+              <Text style={styles.darkAmount}>
+                {fcfa(Math.max(0, isLive ? envelopes.perDay : envelopes.courantSpent))}
+              </Text>
+              <Text style={styles.darkMeta}>
+                {isLive
+                  ? `${envelopes.daysLeft} jour${envelopes.daysLeft > 1 ? 's' : ''} restants · ${fcfa(envelopes.resteAVivre)} de courant`
+                  : `Courant dépensé sur ${cycle.dayCount} jours · ${cycle.rangeLabel}`}
+              </Text>
+              {isLive ? ctas : cycleRecap}
+            </View>
           </View>
         </LinearGradient>
         <View style={[styles.body, { paddingHorizontal: gutter }]}>
+          {cycleSwitch}
           <VersetCard profil={settings.profil} />
           {insightsCard}
           {chartCard}
@@ -277,7 +327,7 @@ export default function HomeScreen() {
   return (
     <Screen padded={false} maxWidth="wide" scroll>
       <LinearGradient
-        colors={['#EAF2EC', colors.ground, '#F7F4EE']}
+        colors={['rgba(234,242,236,0.48)', 'rgba(241,238,230,0.16)', 'rgba(247,244,238,0.05)']}
         locations={[0, 0.45, 1]}
         style={[styles.deskCanvas, { paddingHorizontal: gutter }]}
       >
@@ -297,31 +347,42 @@ export default function HomeScreen() {
           />
         </View>
 
+        {cycleSwitch}
+
         <View style={[styles.deskTopRow, styles.deskTopRowFixed]}>
           <View style={[styles.darkCard, styles.cardShadow]}>
-            <Text style={styles.darkLabel}>Reste à vivre</Text>
-            <Text style={styles.darkAmount} numberOfLines={1}>
-              {fcfa(Math.max(0, envelopes.perDay))}
-            </Text>
-            <Text style={styles.darkMeta}>
-              {envelopes.daysLeft} jour{envelopes.daysLeft > 1 ? 's' : ''} · {fcfa(envelopes.resteAVivre)}{' '}
-              courant
-            </Text>
-            {ctas}
+            <BotanicalField variant="dark" density="card" style={{ borderRadius: radius.xl }} />
+            <View style={styles.cardForeground}>
+              <Text style={styles.darkLabel}>
+                {isLive ? 'Reste à vivre' : `Cycle ${cycle.short} ${cycle.year}`}
+              </Text>
+              <Text style={styles.darkAmount} numberOfLines={1}>
+                {fcfa(Math.max(0, isLive ? envelopes.perDay : envelopes.courantSpent))}
+              </Text>
+              <Text style={styles.darkMeta}>
+                {isLive
+                  ? `${envelopes.daysLeft} jour${envelopes.daysLeft > 1 ? 's' : ''} · ${fcfa(envelopes.resteAVivre)} courant`
+                  : `${cycle.dayCount} jours · ${cycle.rangeLabel}`}
+              </Text>
+              {isLive ? ctas : cycleRecap}
+            </View>
           </View>
 
           <View style={styles.lightCard}>{envelopesCard}</View>
 
           <View style={[styles.darkCard, styles.cardShadow]}>
-            <Text style={styles.darkLabel}>Position réelle</Text>
-            <Text style={styles.darkAmount} numberOfLines={1}>
-              {fcfa(position.net)}
-            </Text>
-            <Text style={styles.darkMeta}>Disponible {fcfa(position.liquid)}</Text>
-            <Text style={styles.darkMeta}>Épargne {fcfa(position.savings)}</Text>
-            <Text style={[styles.darkMeta, styles.debtMeta]}>
-              Dettes {fcfa(position.iOwePeople + position.iOweCredits)}
-            </Text>
+            <BotanicalField variant="dark" density="card" style={{ borderRadius: radius.xl }} />
+            <View style={styles.cardForeground}>
+              <Text style={styles.darkLabel}>Position réelle</Text>
+              <Text style={styles.darkAmount} numberOfLines={1}>
+                {fcfa(position.net)}
+              </Text>
+              <Text style={styles.darkMeta}>Disponible {fcfa(position.liquid)}</Text>
+              <Text style={styles.darkMeta}>Épargne {fcfa(position.savings)}</Text>
+              <Text style={[styles.darkMeta, styles.debtMeta]}>
+                Dettes {fcfa(position.iOwePeople + position.iOweCredits)}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -333,14 +394,15 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={[styles.summaryBar, styles.summaryBarFixed, styles.cardShadow]}>
+          <View style={[styles.summaryBar, styles.summaryBarFixed, styles.cardShadow]}>
+          <BotanicalField variant="dark" density="card" style={{ borderRadius: radius.xl }} />
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Revenus année</Text>
+            <Text style={styles.summaryLabel}>Revenus {cycle.year}</Text>
             <Text style={styles.summaryValue}>{fcfa(yearIncome)}</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Dépenses année</Text>
+            <Text style={styles.summaryLabel}>Dépenses {cycle.year}</Text>
             <Text style={styles.summaryValue}>{fcfa(yearExpense)}</Text>
           </View>
           <View style={styles.summaryDivider} />
@@ -415,11 +477,13 @@ const styles = StyleSheet.create({
   heroMobile: {
     paddingTop: 8,
     paddingBottom: 28,
+    position: 'relative',
   },
   deskCanvas: {
     paddingTop: 22,
     paddingBottom: 48,
     minHeight: '100%',
+    position: 'relative',
   },
   deskHead: {
     flexDirection: 'row',
@@ -478,6 +542,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(196,137,42,0.22)',
+    position: 'relative',
   },
   darkCardMobile: {
     backgroundColor: colors.panel,
@@ -486,10 +551,14 @@ const styles = StyleSheet.create({
     marginTop: 4,
     borderWidth: 1,
     borderColor: 'rgba(196,137,42,0.22)',
+    position: 'relative',
   },
   lightCard: {
     flex: 1.25,
     minWidth: 0,
+  },
+  cardForeground: {
+    zIndex: 1,
   },
   darkLabel: {
     fontFamily: fonts.corpsSemi,
@@ -529,6 +598,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(196,137,42,0.18)',
+    position: 'relative',
   },
   summaryBarFixed: {
     flexWrap: 'nowrap',
@@ -537,6 +607,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     paddingVertical: 4,
+    zIndex: 1,
   },
   summaryDivider: {
     width: StyleSheet.hairlineWidth,
@@ -670,6 +741,29 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: 110,
     minWidth: 100,
+  },
+  recapRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.16)',
+  },
+  recapItem: {
+    flex: 1,
+    minWidth: 0,
+  },
+  recapDivider: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    marginHorizontal: 12,
+  },
+  recapValue: {
+    fontFamily: fonts.chiffreMed,
+    fontSize: 16,
+    color: colors.white,
+    marginTop: 2,
   },
   body: { paddingTop: 4 },
   cardHead: {
