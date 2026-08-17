@@ -4,9 +4,12 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { completeOnboarding } from '../src/db/database';
+import { generateRecoveryCode } from '../src/lib/recovery';
 import { useApp } from '../src/store/AppContext';
 import { DEFAULT_RATES, DON_LABELS, type Profil } from '../src/types';
-import { fcfa, parseFcfaInput, splitIncome } from '../src/lib/money';
+import { CURRENCIES, DEFAULT_CURRENCY, DEFAULT_PHONE_CODE, phoneMeta, type CurrencyCode } from '../src/lib/locale';
+import { currencySuffix, fcfa, parseFcfaInput, setActiveCurrency, splitIncome } from '../src/lib/money';
+import { CurrencyPicker, PhoneField } from '../src/ui/LocaleFields';
 import {
   Avatar,
   Body,
@@ -32,6 +35,9 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [phoneCode, setPhoneCode] = useState(DEFAULT_PHONE_CODE);
+  const [currency, setCurrency] = useState<CurrencyCode>(DEFAULT_CURRENCY);
+  const [currencyTouched, setCurrencyTouched] = useState(false);
   const [profil, setProfil] = useState<Profil>('chretien');
   const [avatar, setAvatar] = useState<AvatarChoice>({ preset: 'initials', photo: null });
   const [income, setIncome] = useState('185000');
@@ -41,6 +47,7 @@ export default function OnboardingScreen() {
   const [monthStart, setMonthStart] = useState('25');
   const [pin, setPin] = useState('');
   const [pin2, setPin2] = useState('');
+  const [recoveryCode, setRecoveryCode] = useState('');
   const [busy, setBusy] = useState(false);
 
   function applyProfil(p: Profil) {
@@ -58,7 +65,7 @@ export default function OnboardingScreen() {
     Number(semenceRate) || 0,
   );
 
-  async function finish() {
+  function goToRecovery() {
     if (pin.length < 4) {
       Alert.alert('Code PIN', 'Choisis un code d’au moins 4 chiffres.');
       return;
@@ -67,11 +74,22 @@ export default function OnboardingScreen() {
       Alert.alert('Code PIN', 'Les deux codes ne correspondent pas.');
       return;
     }
+    setRecoveryCode((prev) => prev || generateRecoveryCode());
+    setStep(3);
+  }
+
+  async function finish() {
+    if (!recoveryCode) {
+      Alert.alert('Code de secours', 'Reviens à l’étape PIN pour générer un code de secours.');
+      return;
+    }
     setBusy(true);
     try {
       await completeOnboarding({
         name: name.trim() || 'Utilisateur',
         phone: phone.trim(),
+        phoneCode,
+        currency,
         profil,
         monthlyIncome: parseFcfaInput(income),
         donRate: Number(donRate) || 0,
@@ -79,6 +97,7 @@ export default function OnboardingScreen() {
         semenceRate: Number(semenceRate) || 0,
         monthStartDay: Math.min(28, Math.max(1, Number(monthStart) || 1)),
         pin,
+        recoveryCode,
         avatarPreset: avatar.preset,
         avatarPhoto: avatar.photo,
       });
@@ -93,7 +112,7 @@ export default function OnboardingScreen() {
 
   const form = (
     <>
-      <StepDots total={3} current={step} />
+      <StepDots total={4} current={step} />
 
       {step === 0 && (
         <View>
@@ -104,12 +123,32 @@ export default function OnboardingScreen() {
             Quatre enveloppes, un ordre fixe. Configure ton profil en quelques minutes.
           </Body>
           <Field label="Ton prénom" value={name} onChangeText={setName} placeholder="Jean-Claude" />
-          <Field
-            label="Numéro de téléphone"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            placeholder="6XX XX XX XX"
+          <CurrencyPicker
+            value={currency}
+            onChange={(next) => {
+              setCurrencyTouched(true);
+              setCurrency(next);
+              setActiveCurrency(next);
+              const sample = CURRENCIES.find((c) => c.code === next)?.sampleIncome;
+              const known = CURRENCIES.some((c) => c.sampleIncome === income);
+              if (sample && known) setIncome(sample);
+            }}
+          />
+          <PhoneField
+            code={phoneCode}
+            number={phone}
+            onChangeCode={(next) => {
+              setPhoneCode(next);
+              if (!currencyTouched) {
+                const suggested = phoneMeta(next).currency;
+                setCurrency(suggested);
+                setActiveCurrency(suggested);
+                const sample = CURRENCIES.find((c) => c.code === suggested)?.sampleIncome;
+                const known = CURRENCIES.some((c) => c.sampleIncome === income);
+                if (sample && known) setIncome(sample);
+              }
+            }}
+            onChangeNumber={setPhone}
           />
           <Eyebrow>Ton visage</Eyebrow>
           <AvatarPicker name={name} value={avatar} onChange={setAvatar} />
@@ -137,10 +176,10 @@ export default function OnboardingScreen() {
         <View>
           <Title>Ta répartition.</Title>
           <Body style={{ marginBottom: 24 }}>
-            Ajuste les pourcentages. Tu verras tout de suite ce qui reste à vivre.
+            Ajuste les pourcentages. Tu pourras les changer plus tard, mois après mois.
           </Body>
           <Field
-            label="Revenu du mois (FCFA)"
+            label={`Revenu du mois (${currencySuffix(currency)})`}
             value={income}
             onChangeText={setIncome}
             keyboardType="number-pad"
@@ -186,7 +225,6 @@ export default function OnboardingScreen() {
             <Text style={styles.previewLine}>Épargne · {fcfa(split.epargne)}</Text>
             <Text style={styles.previewLine}>Semence · {fcfa(split.semence)}</Text>
             <Text style={styles.previewStrong}>Reste pour vivre · {fcfa(split.courant)}</Text>
-            <Text style={styles.previewDay}>soit {fcfa(split.perDay)} / jour</Text>
           </SoftCard>
 
           <Button label="Continuer" icon="arrow-forward" onPress={() => setStep(2)} />
@@ -225,13 +263,32 @@ export default function OnboardingScreen() {
             secureTextEntry
             maxLength={8}
           />
+          <Button label="Continuer" icon="arrow-forward" onPress={goToRecovery} />
+          <Button label="Retour" variant="ghost" icon="arrow-back" onPress={() => setStep(1)} />
+        </View>
+      )}
+
+      {step === 3 && (
+        <View>
+          <Title>Code de secours.</Title>
+          <Body style={{ marginBottom: 24 }}>
+            Note-le hors de l’app. Il sert uniquement si tu oublies ton PIN. Sans lui, il faudra
+            effacer ce profil.
+          </Body>
+          <SoftCard>
+            <Eyebrow>À conserver</Eyebrow>
+            <Text selectable style={styles.recoveryCode}>
+              {recoveryCode}
+            </Text>
+            <Text style={styles.recoveryHint}>Quatre lettres ou chiffres, un tiret, puis quatre encore.</Text>
+          </SoftCard>
           <Button
-            label={busy ? 'Création…' : 'Ouvrir Semence'}
+            label={busy ? 'Création…' : 'J’ai noté ce code, ouvrir Semence'}
             icon="leaf-outline"
             onPress={finish}
             disabled={busy}
           />
-          <Button label="Retour" variant="ghost" icon="arrow-back" onPress={() => setStep(1)} />
+          <Button label="Retour" variant="ghost" icon="arrow-back" onPress={() => setStep(2)} />
         </View>
       )}
     </>
@@ -270,7 +327,7 @@ export default function OnboardingScreen() {
             <Text style={styles.desktopPitch}>
               Semer avant de dépenser. Don, épargne, semence, puis courant.
             </Text>
-            <Text style={styles.desktopStep}>Étape {step + 1} sur 3</Text>
+            <Text style={styles.desktopStep}>Étape {step + 1} sur 4</Text>
           </View>
         </LinearGradient>
         <LinearGradient
@@ -321,10 +378,21 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 8,
   },
-  previewDay: {
-    fontFamily: fonts.corpsSemi,
-    color: colors.or,
-    fontSize: 14,
+  recoveryCode: {
+    marginTop: 10,
+    fontFamily: fonts.chiffreMed,
+    fontSize: 28,
+    letterSpacing: 3,
+    color: colors.ink,
+    textAlign: 'center',
+  },
+  recoveryHint: {
+    marginTop: 10,
+    fontFamily: fonts.corps,
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.ink3,
+    textAlign: 'center',
   },
   lockVisual: {
     flexDirection: 'row',

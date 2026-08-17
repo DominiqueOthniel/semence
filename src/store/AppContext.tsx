@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Account, Credit, Debt, FavoriteAmount, SavingsGoal, Settings, Transaction } from '../types';
 import * as db from '../db/database';
-import { splitIncome } from '../lib/money';
+import { setActiveCurrency, splitIncome } from '../lib/money';
 import {
   clampCycleOffset,
   cycleAtOffset,
@@ -30,7 +30,6 @@ interface AppState {
     epargneSpent: number;
     semenceSpent: number;
     courantSpent: number;
-    perDay: number;
     daysLeft: number;
     resteAVivre: number;
     cycleIncome: number;
@@ -46,6 +45,10 @@ interface AppState {
   goToCurrentCycle: () => void;
   refresh: () => Promise<void>;
   unlock: (pin: string) => Promise<boolean>;
+  lock: () => void;
+  recoverAccess: (recovery: string, newPin: string) => Promise<boolean>;
+  resetProfile: () => Promise<void>;
+  issueRecoveryCode: () => Promise<string>;
   setUnlocked: (v: boolean) => void;
 }
 
@@ -93,6 +96,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       await db.getDb();
       const s = await db.getSettings();
+      setActiveCurrency(s.currency);
       setSettings(s);
 
       if (!s.onboardingDone) {
@@ -139,10 +143,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const resteCourant = split.courant - courantSpent;
       const cycleIncome = txs.filter((t) => t.type === 'revenu').reduce((sum, t) => sum + t.amount, 0);
       const cycleExpense = txs.filter((t) => t.type === 'depense').reduce((sum, t) => sum + t.amount, 0);
-      const perDay =
-        viewed.status === 'en_cours'
-          ? Math.round(resteCourant / daysLeft)
-          : Math.round(courantSpent / viewed.dayCount);
 
       setEnvelopes({
         donBudget: split.don,
@@ -153,7 +153,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         epargneSpent,
         semenceSpent,
         courantSpent,
-        perDay,
         daysLeft,
         resteAVivre: resteCourant,
         cycleIncome,
@@ -189,6 +188,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return ok;
   }, []);
 
+  const lock = useCallback(() => {
+    setUnlocked(false);
+  }, []);
+
+  const recoverAccess = useCallback(async (recovery: string, newPin: string) => {
+    const ok = await db.resetPinWithRecovery(recovery, newPin);
+    if (ok) {
+      await refresh();
+      setUnlocked(true);
+    }
+    return ok;
+  }, [refresh]);
+
+  const resetProfile = useCallback(async () => {
+    await db.resetStore();
+    setAccounts([]);
+    setTransactions([]);
+    setYearTransactions([]);
+    setDebts([]);
+    setCredits([]);
+    setGoals([]);
+    setFavorites([]);
+    setPosition(null);
+    setEnvelopes(null);
+    setEveningDone(false);
+    setStreak(0);
+    setCreditYear({ count: 0, cost: 0 });
+    setCycleOffsetState(0);
+    setCycle(fallbackCycle());
+    setUnlocked(true);
+    await refresh();
+  }, [refresh]);
+
+  const issueRecoveryCode = useCallback(async () => {
+    const code = await db.issueRecoveryCode();
+    await refresh();
+    return code;
+  }, [refresh]);
+
   const value = useMemo(
     () => ({
       ready,
@@ -213,6 +251,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       goToCurrentCycle,
       refresh,
       unlock,
+      lock,
+      recoverAccess,
+      resetProfile,
+      issueRecoveryCode,
       setUnlocked,
     }),
     [
@@ -238,6 +280,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       goToCurrentCycle,
       refresh,
       unlock,
+      lock,
+      recoverAccess,
+      resetProfile,
+      issueRecoveryCode,
     ],
   );
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../../src/store/AppContext';
 import { addExpense, markEveningDone } from '../../src/db/database';
-import { fcfa, parseFcfaInput } from '../../src/lib/money';
+import { currencySuffix, fcfa, parseFcfaInput } from '../../src/lib/money';
 import { notify } from '../../src/lib/notify';
 import { useLayout } from '../../src/hooks/useLayout';
 import {
@@ -53,10 +53,7 @@ export default function SoirScreen() {
   const account = accounts[0];
   const locked = (eveningDone || doneLocal) && !editAgain;
 
-  const previewPerDay = Math.max(
-    0,
-    Math.round((envelopes.resteAVivre - draftTotal) / Math.max(1, envelopes.daysLeft)),
-  );
+  const previewReste = Math.max(0, envelopes.resteAVivre - draftTotal);
 
   function addFavorite(label: string, value: number) {
     setDrafts((prev) => [...prev, { id: `${Date.now()}-${prev.length}`, label, amount: value }]);
@@ -230,7 +227,7 @@ export default function SoirScreen() {
       ) : null}
 
       <Field
-        label="Autre montant (FCFA)"
+        label={`Autre montant (${currencySuffix()})`}
         value={extra}
         onChangeText={setExtra}
         keyboardType="number-pad"
@@ -246,11 +243,10 @@ export default function SoirScreen() {
             <Eyebrow>Total du soir</Eyebrow>
           </View>
           <Amount>{fcfa(draftTotal)}</Amount>
-          <Body style={{ marginTop: 10 }}>Reste à vivre après validation</Body>
+          <Body style={{ marginTop: 10 }}>Reste à vivre ce mois après validation</Body>
           <Amount large style={{ marginTop: 4 }}>
-            {fcfa(previewPerDay)}
+            {fcfa(previewReste)}
           </Amount>
-          <Body style={{ marginTop: 6 }}>par jour · {envelopes.daysLeft} jours restants</Body>
         </SoftCard>
       ) : null}
 
@@ -277,11 +273,8 @@ export default function SoirScreen() {
     <View style={styles.previewPanel}>
       <Text style={styles.previewLabel}>Total du soir</Text>
       <Text style={styles.previewAmount}>{fcfa(draftTotal)}</Text>
-      <Text style={styles.previewMeta}>Après validation</Text>
-      <Text style={styles.previewPerDay}>{fcfa(previewPerDay)}</Text>
-      <Text style={styles.previewMeta}>
-        par jour · {envelopes.daysLeft} jour{envelopes.daysLeft > 1 ? 's' : ''} restants
-      </Text>
+      <Text style={styles.previewMeta}>Reste à vivre ce mois</Text>
+      <Text style={styles.previewPerDay}>{fcfa(previewReste)}</Text>
       <View style={styles.previewVerse}>
         <Text style={styles.versetLight}>« {verset.text} »</Text>
         <Text style={styles.refLight}>{verset.ref}</Text>

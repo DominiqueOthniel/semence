@@ -10,14 +10,12 @@ export type EnvelopeInsight = {
 };
 
 export function DashboardInsights({
-  perDay,
   daysLeft,
   resteAVivre,
   envelopes,
   closed,
   cycleLabel,
 }: {
-  perDay: number;
   daysLeft: number;
   resteAVivre: number;
   envelopes: EnvelopeInsight[];
@@ -30,10 +28,7 @@ export function DashboardInsights({
     const pct = e.spent / e.budget;
     return pct >= 0.85 && pct <= 1;
   });
-
-  const pace = daysLeft > 0 ? Math.round(resteAVivre / daysLeft) : 0;
-  const projection =
-    daysLeft > 0 ? Math.max(0, resteAVivre - perDay * Math.max(0, daysLeft - 1)) : resteAVivre;
+  const courant = envelopes.find((e) => e.label === 'Courant');
 
   return (
     <SoftCard>
@@ -57,12 +52,12 @@ export function DashboardInsights({
       ) : (
         <>
           <Text style={styles.line}>
-            Rythme conseillé : <Text style={styles.strong}>{fcfa(pace)}</Text> / jour pour tenir jusqu’à
-            la fin du cycle.
+            Reste à vivre ce mois : <Text style={styles.strong}>{fcfa(resteAVivre)}</Text>
+            {' sur '}
+            <Text style={styles.strong}>{fcfa(courant?.budget ?? 0)}</Text> de courant.
           </Text>
           <Text style={[styles.line, { marginTop: 8 }]}>
-            Si tu gardes le rythme actuel, il resterait environ{' '}
-            <Text style={styles.strong}>{fcfa(Math.max(0, projection))}</Text> en courant.
+            {daysLeft} jour{daysLeft > 1 ? 's' : ''} restants dans le cycle.
           </Text>
         </>
       )}

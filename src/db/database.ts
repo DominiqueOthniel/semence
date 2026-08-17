@@ -15,6 +15,8 @@ import type {
 import { DEFAULT_RATES } from '../types';
 import { nowISO, todayISO } from '../lib/money';
 import { cycleAtOffset } from '../lib/cycle';
+import { DEFAULT_CURRENCY, DEFAULT_PHONE_CODE, normalizeCurrency, normalizePhoneCode } from '../lib/locale';
+import { generateRecoveryCode, normalizeRecovery } from '../lib/recovery';
 
 const KEY = 'semence.v1';
 
@@ -39,8 +41,11 @@ function defaultSettings(): Settings {
     id: 1,
     name: '',
     phone: '',
+    phoneCode: DEFAULT_PHONE_CODE,
+    currency: DEFAULT_CURRENCY,
     profil: 'chretien',
     pinHash: null,
+    recoveryHash: null,
     monthStartDay: 1,
     eveningHour: 20,
     eveningMinute: 30,
@@ -64,6 +69,9 @@ function normalizeSettings(raw: Partial<Settings>): Settings {
     monthStartDay: Number.isFinite(day) ? Math.min(28, Math.max(1, Math.round(day))) : base.monthStartDay,
     avatarPreset: typeof raw.avatarPreset === 'string' ? raw.avatarPreset : merged.avatarPreset || base.avatarPreset,
     avatarPhoto: typeof raw.avatarPhoto === 'string' ? raw.avatarPhoto : null,
+    recoveryHash: typeof raw.recoveryHash === 'string' ? raw.recoveryHash : null,
+    currency: normalizeCurrency(raw.currency ?? merged.currency),
+    phoneCode: normalizePhoneCode(raw.phoneCode ?? merged.phoneCode),
   };
 }
 
@@ -159,8 +167,11 @@ export async function getSettings(): Promise<Settings> {
 export async function updateSettings(patch: Partial<{
   name: string;
   phone: string;
+  phoneCode: string;
+  currency: string;
   profil: Profil;
   pinHash: string | null;
+  recoveryHash: string | null;
   monthStartDay: number;
   eveningHour: number;
   eveningMinute: number;
@@ -194,9 +205,48 @@ export async function verifyPin(pin: string): Promise<boolean> {
   return s.pinHash === simpleHash(pin);
 }
 
+export async function hasRecoveryCode(): Promise<boolean> {
+  const s = await getSettings();
+  return !!s.recoveryHash;
+}
+
+export async function verifyRecovery(code: string): Promise<boolean> {
+  const s = await getSettings();
+  if (!s.recoveryHash) return false;
+  const key = normalizeRecovery(code);
+  if (key.length < 8) return false;
+  return s.recoveryHash === simpleHash(key);
+}
+
+export async function resetPinWithRecovery(code: string, newPin: string): Promise<boolean> {
+  if (newPin.length < 4) return false;
+  const ok = await verifyRecovery(code);
+  if (!ok) return false;
+  await updateSettings({ pinHash: simpleHash(newPin) });
+  return true;
+}
+
+export async function issueRecoveryCode(): Promise<string> {
+  const code = generateRecoveryCode();
+  await updateSettings({ recoveryHash: simpleHash(normalizeRecovery(code)) });
+  return code;
+}
+
+/** Efface le carnet local et repart d’un magasin vide. */
+export async function resetStore(): Promise<void> {
+  cache = null;
+  boot = null;
+  await AsyncStorage.removeItem(KEY);
+  const store = emptyStore();
+  cache = store;
+  await save(store);
+}
+
 export async function completeOnboarding(input: {
   name: string;
   phone: string;
+  phoneCode: string;
+  currency: string;
   profil: Profil;
   monthlyIncome: number;
   donRate: number;
@@ -204,6 +254,7 @@ export async function completeOnboarding(input: {
   semenceRate: number;
   monthStartDay: number;
   pin: string;
+  recoveryCode: string;
   avatarPreset?: string;
   avatarPhoto?: string | null;
 }): Promise<void> {
@@ -213,6 +264,8 @@ export async function completeOnboarding(input: {
   await updateSettings({
     name: input.name,
     phone: input.phone,
+    phoneCode: normalizePhoneCode(input.phoneCode),
+    currency: normalizeCurrency(input.currency),
     profil: input.profil,
     monthlyIncome: input.monthlyIncome,
     donRate,
@@ -220,6 +273,7 @@ export async function completeOnboarding(input: {
     semenceRate: input.semenceRate || rates.semence,
     monthStartDay: input.monthStartDay,
     pinHash: simpleHash(input.pin),
+    recoveryHash: simpleHash(normalizeRecovery(input.recoveryCode)),
     onboardingDone: 1,
     avatarPreset: input.avatarPreset || 'initials',
     avatarPhoto: input.avatarPhoto ?? null,
@@ -525,28 +579,70 @@ export async function creditCostYear(): Promise<{ count: number; cost: number }>
   return { count: rows.length, cost };
 }
 
+function normalizeGoal(raw: Partial<SavingsGoal>): SavingsGoal {
+  return {
+    id: Number(raw.id) || 0,
+    name: String(raw.name || ''),
+    target: Number(raw.target) || 0,
+    current: Number(raw.current) || 0,
+    dueDate: typeof raw.dueDate === 'string' ? raw.dueDate : null,
+    months: typeof raw.months === 'number' && raw.months > 0 ? raw.months : null,
+    monthlyBudget: typeof raw.monthlyBudget === 'number' && raw.monthlyBudget > 0 ? raw.monthlyBudget : null,
+    createdAt: String(raw.createdAt || nowISO()),
+  };
+}
+
 export async function listGoals(): Promise<SavingsGoal[]> {
   const store = await load();
+  store.goals = store.goals.map(normalizeGoal);
   return store.goals.slice().reverse();
 }
 
-export async function addGoal(name: string, target: number, dueDate?: string | null): Promise<void> {
+export async function addGoal(input: {
+  name: string;
+  target: number;
+  months?: number | null;
+  monthlyBudget?: number | null;
+  dueDate?: string | null;
+}): Promise<void> {
   const store = await load();
-  store.goals.push({
-    id: nextId(store),
-    name,
-    target,
-    current: 0,
-    dueDate: dueDate ?? null,
-    createdAt: nowISO(),
-  });
+  store.goals.push(
+    normalizeGoal({
+      id: nextId(store),
+      name: input.name,
+      target: input.target,
+      current: 0,
+      months: input.months ?? null,
+      monthlyBudget: input.monthlyBudget ?? null,
+      dueDate: input.dueDate ?? null,
+      createdAt: nowISO(),
+    }),
+  );
+  await save(store);
+}
+
+export async function updateGoal(
+  id: number,
+  patch: Partial<Pick<SavingsGoal, 'name' | 'target' | 'months' | 'monthlyBudget' | 'dueDate' | 'current'>>,
+): Promise<void> {
+  const store = await load();
+  const g = store.goals.find((x) => x.id === id);
+  if (!g) return;
+  Object.assign(g, patch);
+  store.goals = store.goals.map(normalizeGoal);
+  await save(store);
+}
+
+export async function deleteGoal(id: number): Promise<void> {
+  const store = await load();
+  store.goals = store.goals.filter((g) => g.id !== id);
   await save(store);
 }
 
 export async function contributeGoal(id: number, amount: number): Promise<void> {
   const store = await load();
   const g = store.goals.find((x) => x.id === id);
-  if (g) g.current += amount;
+  if (g) g.current = Math.max(0, g.current + amount);
   await save(store);
 }
 

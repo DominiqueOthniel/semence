@@ -5,7 +5,7 @@ import { useApp } from '../src/store/AppContext';
 import { addExpense, addIncome } from '../src/db/database';
 import type { EnvelopeKind } from '../src/types';
 import { DON_LABELS } from '../src/types';
-import { fcfa, parseFcfaInput } from '../src/lib/money';
+import { currencySuffix, fcfa, parseFcfaInput } from '../src/lib/money';
 import { Body, Button, Chip, Field, Screen, Segment } from '../src/ui/primitives';
 import { colors, fonts } from '../src/theme/colors';
 
@@ -98,9 +98,9 @@ export default function SaisieScreen() {
         </View>
       )}
 
-      <Field label="Montant (FCFA)" value={amount} onChangeText={setAmount} keyboardType="number-pad" />
+      <Field label={`Montant (${currencySuffix()})`} value={amount} onChangeText={setAmount} keyboardType="number-pad" />
       <Field label="Libellé" value={note} onChangeText={setNote} placeholder={isIncome ? 'Salaire' : 'Déjeuner'} />
-      <Body style={{ marginBottom: 16 }}>Montants entiers FCFA, sans décimales.</Body>
+      <Body style={{ marginBottom: 16 }}>Montants entiers, sans décimales.</Body>
       <Button label="Enregistrer" icon="checkmark-circle-outline" onPress={save} />
     </Screen>
   );

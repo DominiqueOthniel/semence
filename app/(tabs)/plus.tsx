@@ -1,10 +1,14 @@
-import { useState } from 'react';
-import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useApp } from '../../src/store/AppContext';
 import { exportBackup, updateSettings } from '../../src/db/database';
 import { DON_LABELS, PROFIL_LABELS } from '../../src/types';
-import { fcfa } from '../../src/lib/money';
+import { formatPhone, type CurrencyCode } from '../../src/lib/locale';
+import { goalPace } from '../../src/lib/goals';
+import { currencySuffix, fcfa, setActiveCurrency } from '../../src/lib/money';
+import { BudgetEditor } from '../../src/ui/BudgetEditor';
+import { CurrencyPicker, PhoneField } from '../../src/ui/LocaleFields';
 import { notify } from '../../src/lib/notify';
 import { buildMonthlyCsvReport, reportFileName } from '../../src/lib/report';
 import { useLayout } from '../../src/hooks/useLayout';
@@ -16,6 +20,7 @@ import {
   IconBadge,
   PageCol,
   PageGrid,
+  ProgressBar,
   Row,
   Screen,
   SoftCard,
@@ -33,12 +38,30 @@ const MONTH_OPTS = [
 export default function PlusScreen() {
   const router = useRouter();
   const { isCompact } = useLayout();
-  const { settings, debts, credits, goals, creditYear, refresh, setUnlocked, yearTransactions } =
-    useApp();
+  const {
+    settings,
+    debts,
+    credits,
+    goals,
+    creditYear,
+    refresh,
+    lock,
+    resetProfile,
+    issueRecoveryCode,
+    yearTransactions,
+  } = useApp();
   const [editAvatar, setEditAvatar] = useState(false);
   const [draftAvatar, setDraftAvatar] = useState<AvatarChoice | null>(null);
   const [savingAvatar, setSavingAvatar] = useState(false);
   const [savingMonth, setSavingMonth] = useState(false);
+  const [freshRecovery, setFreshRecovery] = useState<string | null>(null);
+  const [sessionBusy, setSessionBusy] = useState(false);
+  const [savingBudget, setSavingBudget] = useState(false);
+  const [phoneDraft, setPhoneDraft] = useState(settings?.phone ?? '');
+
+  useEffect(() => {
+    if (settings) setPhoneDraft(settings.phone);
+  }, [settings?.phone]);
 
   if (!settings) return null;
 
@@ -183,6 +206,162 @@ export default function PlusScreen() {
     </View>
   );
 
+  async function saveBudget(next: {
+    monthlyIncome: number;
+    donRate: number;
+    epargneRate: number;
+    semenceRate: number;
+  }) {
+    setSavingBudget(true);
+    try {
+      await updateSettings(next);
+      await refresh();
+      notify('Budget', 'Répartition mise à jour pour ce mois.');
+    } catch (e) {
+      notify('Budget', String(e));
+    } finally {
+      setSavingBudget(false);
+    }
+  }
+
+  const budgetCard = (
+    <SoftCard>
+      <BudgetEditor settings={settings} busy={savingBudget} onSave={saveBudget} />
+      {isCompact ? monthPicker : null}
+    </SoftCard>
+  );
+
+  const goalsCard = (
+    <SoftCard style={!isCompact ? styles.deskPanel : undefined}>
+      <View style={styles.cardHead}>
+        <IconBadge name="flag-outline" bg={colors.ambreWash} color={colors.ambre} />
+        <Eyebrow>Objectifs</Eyebrow>
+      </View>
+      {goals.length === 0 ? (
+        <Body>Aucun objectif. Fixe un budget et une durée pour y aller mois après mois.</Body>
+      ) : (
+        goals.map((g) => {
+          const pace = goalPace(g);
+          return (
+            <View key={g.id} style={styles.goalBlock}>
+              <Row
+                label={g.name}
+                value={`${fcfa(g.current)} / ${fcfa(g.target)}`}
+                tone="vert"
+                icon="flag-outline"
+                last
+              />
+              <ProgressBar value={g.current} max={g.target} color={colors.ambre} />
+              <Body style={{ marginTop: 8 }}>
+                {pace.monthly > 0
+                  ? `${fcfa(pace.monthly)} / mois${pace.monthsLeft ? ` · ${pace.monthsLeft} mois restants` : ''}`
+                  : g.dueDate
+                    ? `Échéance ${g.dueDate}`
+                    : 'Durée libre'}
+              </Body>
+              <Button
+                label="Verser ou modifier"
+                variant="soft"
+                icon="create-outline"
+                compact
+                onPress={() => router.push({ pathname: '/objectif', params: { id: String(g.id) } })}
+              />
+            </View>
+          );
+        })
+      )}
+      <Button
+        label="Nouvel objectif"
+        variant="soft"
+        icon="add"
+        onPress={() => router.push('/objectif')}
+      />
+    </SoftCard>
+  );
+
+  async function createRecovery() {
+    if (sessionBusy) return;
+    setSessionBusy(true);
+    try {
+      const code = await issueRecoveryCode();
+      setFreshRecovery(code);
+    } catch (e) {
+      notify('Code de secours', String(e));
+    } finally {
+      setSessionBusy(false);
+    }
+  }
+
+  function askNewProfile() {
+    Alert.alert(
+      'Nouveau profil',
+      'Ce carnet local sera vidé (comptes, opérations, PIN). Exporte une sauvegarde avant si tu veux le retrouver plus tard.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Effacer et recommencer',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setSessionBusy(true);
+              try {
+                await resetProfile();
+              } catch (e) {
+                notify('Profil', String(e));
+                setSessionBusy(false);
+              }
+            })();
+          },
+        },
+      ],
+    );
+  }
+
+  const sessionCard = (
+    <>
+      {freshRecovery ? (
+        <View style={styles.recoveryBox}>
+          <Eyebrow>Note ce code maintenant</Eyebrow>
+          <Text selectable style={styles.recoveryCode}>
+            {freshRecovery}
+          </Text>
+          <Body>Il ne sera plus affiché. Il sert si tu oublies ton PIN.</Body>
+          <Button label="J’ai noté" variant="soft" icon="checkmark" onPress={() => setFreshRecovery(null)} />
+        </View>
+      ) : null}
+      <Button
+        label="Se déconnecter"
+        variant="soft"
+        icon="log-out-outline"
+        onPress={lock}
+      />
+      {!settings.recoveryHash ? (
+        <Button
+          label={sessionBusy ? 'Création…' : 'Créer un code de secours'}
+          variant="ghost"
+          icon="key-outline"
+          onPress={() => void createRecovery()}
+          disabled={sessionBusy}
+        />
+      ) : (
+        <Button
+          label={sessionBusy ? 'Création…' : 'Remplacer le code de secours'}
+          variant="ghost"
+          icon="refresh-outline"
+          onPress={() => void createRecovery()}
+          disabled={sessionBusy}
+        />
+      )}
+      <Button
+        label="Nouveau profil"
+        variant="ghost"
+        icon="person-add-outline"
+        onPress={askNewProfile}
+        disabled={sessionBusy}
+      />
+    </>
+  );
+
   return (
     <Screen maxWidth={isCompact ? 'app' : 'wide'} scroll>
       <View style={[styles.profile, !isCompact && styles.profileDesk]}>
@@ -199,6 +378,9 @@ export default function PlusScreen() {
             {PROFIL_LABELS[settings.profil]}
             {settings.profil !== 'aucun'
               ? ` · ${DON_LABELS[settings.profil]} ${settings.donRate} %`
+              : ''}
+            {settings.phone
+              ? ` · ${formatPhone(settings.phoneCode, settings.phone)}`
               : ''}
           </Body>
           {!isCompact ? (
@@ -224,6 +406,41 @@ export default function PlusScreen() {
         </View>
       </View>
 
+      <SoftCard>
+        <View style={styles.cardHead}>
+          <IconBadge name="globe-outline" />
+          <Eyebrow>Pays et devise</Eyebrow>
+        </View>
+        <CurrencyPicker
+          value={(settings.currency as CurrencyCode) || 'XAF'}
+          onChange={(next) => {
+            void (async () => {
+              setActiveCurrency(next);
+              await updateSettings({ currency: next });
+              await refresh();
+            })();
+          }}
+        />
+        <PhoneField
+          code={settings.phoneCode || '237'}
+          number={phoneDraft}
+          onChangeCode={(next) => {
+            void (async () => {
+              await updateSettings({ phoneCode: next, phone: phoneDraft });
+              await refresh();
+            })();
+          }}
+          onChangeNumber={setPhoneDraft}
+          onBlurNumber={() => {
+            if (phoneDraft === settings.phone) return;
+            void (async () => {
+              await updateSettings({ phone: phoneDraft });
+              await refresh();
+            })();
+          }}
+        />
+      </SoftCard>
+
       {editAvatar ? (
         <SoftCard>
           <AvatarPicker
@@ -242,20 +459,7 @@ export default function PlusScreen() {
 
       {isCompact ? (
         <>
-          <SoftCard>
-            <Row
-              label={`Épargne ${settings.epargneRate} %`}
-              value={`Semence ${settings.semenceRate} %`}
-              icon="leaf-outline"
-            />
-            <Row
-              label="Revenu mensuel"
-              value={fcfa(settings.monthlyIncome)}
-              icon="cash-outline"
-              last
-            />
-            {monthPicker}
-          </SoftCard>
+          {budgetCard}
 
           <SoftCard>
             <View style={styles.cardHead}>
@@ -309,32 +513,7 @@ export default function PlusScreen() {
             />
           </SoftCard>
 
-          <SoftCard>
-            <View style={styles.cardHead}>
-              <IconBadge name="flag-outline" bg={colors.ambreWash} color={colors.ambre} />
-              <Eyebrow>Objectifs d’épargne</Eyebrow>
-            </View>
-            {goals.length === 0 ? (
-              <Body>Aucun objectif.</Body>
-            ) : (
-              goals.map((g, i) => (
-                <Row
-                  key={g.id}
-                  label={g.name}
-                  value={`${fcfa(g.current)} / ${fcfa(g.target)}`}
-                  tone="vert"
-                  icon="flag-outline"
-                  last={i === goals.length - 1}
-                />
-              ))
-            )}
-            <Button
-              label="Nouvel objectif"
-              variant="soft"
-              icon="add"
-              onPress={() => router.push('/objectif')}
-            />
-          </SoftCard>
+          {goalsCard}
 
           <SoftCard>
             <View style={styles.cardHead}>
@@ -364,37 +543,14 @@ export default function PlusScreen() {
               icon="document-text-outline"
               onPress={exportMonthlyReport}
             />
-            <Button
-              label="Verrouiller l’app"
-              variant="ghost"
-              icon="lock-closed-outline"
-              onPress={() => setUnlocked(false)}
-            />
-            <Text style={styles.foot}>Semence · V1 · Hors ligne · FCFA</Text>
+            {sessionCard}
+            <Text style={styles.foot}>Semence · V1 · Hors ligne · {currencySuffix()}</Text>
           </SoftCard>
         </>
       ) : (
         <>
           <PageGrid cols={2} style={{ marginBottom: 8 }}>
-            <PageCol>
-              <SoftCard>
-                <View style={styles.cardHead}>
-                  <IconBadge name="leaf-outline" />
-                  <Eyebrow>Répartition</Eyebrow>
-                </View>
-                <Row
-                  label={`Épargne ${settings.epargneRate} %`}
-                  value={`Semence ${settings.semenceRate} %`}
-                  icon="leaf-outline"
-                />
-                <Row
-                  label="Revenu mensuel"
-                  value={fcfa(settings.monthlyIncome)}
-                  icon="cash-outline"
-                  last
-                />
-              </SoftCard>
-            </PageCol>
+            <PageCol>{budgetCard}</PageCol>
             <PageCol>
               <SoftCard>{monthPicker}</SoftCard>
             </PageCol>
@@ -464,34 +620,7 @@ export default function PlusScreen() {
               </SoftCard>
             </PageCol>
 
-            <PageCol>
-              <SoftCard style={styles.deskPanel}>
-                <View style={styles.cardHead}>
-                  <IconBadge name="flag-outline" bg={colors.ambreWash} color={colors.ambre} />
-                  <Eyebrow>Objectifs d’épargne</Eyebrow>
-                </View>
-                {goals.length === 0 ? (
-                  <Body>Aucun objectif.</Body>
-                ) : (
-                  goals.map((g, i) => (
-                    <Row
-                      key={g.id}
-                      label={g.name}
-                      value={`${fcfa(g.current)} / ${fcfa(g.target)}`}
-                      tone="vert"
-                      icon="flag-outline"
-                      last={i === goals.length - 1}
-                    />
-                  ))
-                )}
-                <Button
-                  label="Nouvel objectif"
-                  variant="soft"
-                  icon="add"
-                  onPress={() => router.push('/objectif')}
-                />
-              </SoftCard>
-            </PageCol>
+            <PageCol>{goalsCard}</PageCol>
           </PageGrid>
 
           <PageGrid cols={2}>
@@ -529,13 +658,8 @@ export default function PlusScreen() {
                   icon="document-text-outline"
                   onPress={exportMonthlyReport}
                 />
-                <Button
-                  label="Verrouiller l’app"
-                  variant="ghost"
-                  icon="lock-closed-outline"
-                  onPress={() => setUnlocked(false)}
-                />
-                <Text style={styles.foot}>Semence · V1 · Hors ligne · FCFA</Text>
+                {sessionCard}
+                <Text style={styles.foot}>Semence · V1 · Hors ligne · {currencySuffix()}</Text>
               </SoftCard>
             </PageCol>
           </PageGrid>
@@ -569,6 +693,12 @@ const styles = StyleSheet.create({
     color: colors.or,
     marginTop: 6,
     marginBottom: 8,
+  },
+  goalBlock: {
+    marginBottom: 14,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.rule,
   },
   cardHead: {
     flexDirection: 'row',
@@ -620,6 +750,22 @@ const styles = StyleSheet.create({
   },
   monthChipHintOn: {
     color: colors.or,
+  },
+  recoveryBox: {
+    marginBottom: 14,
+    padding: 14,
+    borderRadius: radius.md,
+    backgroundColor: colors.ambreWash,
+    borderWidth: 1,
+    borderColor: '#E8D6AE',
+    gap: 8,
+  },
+  recoveryCode: {
+    fontFamily: fonts.chiffreMed,
+    fontSize: 26,
+    letterSpacing: 3,
+    color: colors.ink,
+    textAlign: 'center',
   },
   foot: {
     textAlign: 'center',

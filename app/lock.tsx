@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -12,7 +13,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../src/store/AppContext';
-import { Avatar, Button } from '../src/ui/primitives';
+import { verifyRecovery } from '../src/db/database';
+import { currencySuffix } from '../src/lib/money';
+import { formatRecoveryInput } from '../src/lib/recovery';
+import { Avatar, Button, Field } from '../src/ui/primitives';
 import { BrandLockup } from '../src/ui/BrandLogo';
 import { colors, elev, fonts, radius, space } from '../src/theme/colors';
 import { TOUCH, useLayout } from '../src/hooks/useLayout';
@@ -101,9 +105,13 @@ function PinSlots({
 }
 
 export default function LockScreen() {
-  const { unlock, settings } = useApp();
+  const { unlock, recoverAccess, resetProfile, settings } = useApp();
   const { gutter, isCompact } = useLayout();
+  const [mode, setMode] = useState<'pin' | 'recover' | 'newPin' | 'wipe'>('pin');
   const [pin, setPin] = useState('');
+  const [recovery, setRecovery] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [newPin2, setNewPin2] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<TextInput>(null);
@@ -111,6 +119,7 @@ export default function LockScreen() {
   const firstName = capitalizeName(settings?.name);
   const slots = pinSlotsFromHash(settings?.pinHash);
   const salut = useGreeting();
+  const canRecover = !!settings?.recoveryHash;
 
   async function submit(value = pin) {
     if (busy || value.length < 4) return;
@@ -125,15 +134,84 @@ export default function LockScreen() {
   }
 
   useEffect(() => {
+    if (mode !== 'pin') return;
     const t = setTimeout(() => inputRef.current?.focus(), 350);
     return () => clearTimeout(t);
-  }, []);
+  }, [mode]);
 
   function onChangePin(next: string) {
     const cleaned = next.replace(/[^\d]/g, '').slice(0, slots);
     setPin(cleaned);
     setError('');
     if (cleaned.length === slots) void submit(cleaned);
+  }
+
+  function backToPin() {
+    setMode('pin');
+    setError('');
+    setRecovery('');
+    setNewPin('');
+    setNewPin2('');
+  }
+
+  async function checkRecovery() {
+    if (busy) return;
+    setBusy(true);
+    const ok = await verifyRecovery(recovery);
+    setBusy(false);
+    if (!ok) {
+      setError('Code de secours incorrect');
+      return;
+    }
+    setError('');
+    setMode('newPin');
+  }
+
+  async function saveNewPin() {
+    if (newPin.length < 4) {
+      setError('Choisis un PIN d’au moins 4 chiffres.');
+      return;
+    }
+    if (newPin !== newPin2) {
+      setError('Les deux codes ne correspondent pas.');
+      return;
+    }
+    setBusy(true);
+    const ok = await recoverAccess(recovery, newPin);
+    setBusy(false);
+    if (!ok) {
+      setError('Impossible de changer le PIN. Vérifie le code de secours.');
+      setMode('recover');
+    }
+  }
+
+  function askWipe() {
+    Alert.alert(
+      'Effacer ce profil',
+      'Comptes, opérations et PIN de cet appareil seront effacés. Tu pourras créer un nouveau profil ensuite.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Continuer',
+          style: 'destructive',
+          onPress: () => {
+            setMode('wipe');
+            setError('');
+          },
+        },
+      ],
+    );
+  }
+
+  async function confirmWipe() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await resetProfile();
+    } catch (e) {
+      setError(String(e));
+      setBusy(false);
+    }
   }
 
   const pinBlock = (
@@ -161,6 +239,16 @@ export default function LockScreen() {
           onPress={() => submit()}
           disabled={busy || pin.length < 4}
         />
+        <Button
+          label="Code oublié"
+          variant="ghost"
+          icon="key-outline"
+          onPress={() => {
+            setError('');
+            if (canRecover) setMode('recover');
+            else askWipe();
+          }}
+        />
         <View style={styles.lockHint}>
           <Ionicons name="shield-checkmark-outline" size={14} color={colors.ink3} />
           <Text style={styles.lockHintText}>Code local · hors ligne</Text>
@@ -168,6 +256,110 @@ export default function LockScreen() {
       </View>
     </>
   );
+
+  const recoverBlock = (
+    <View style={styles.actions}>
+      <Text style={styles.altHint}>
+        Saisis le code de secours noté à l’ouverture du profil.
+      </Text>
+      <Field
+        label="Code de secours"
+        value={recovery}
+        onChangeText={(v) => {
+          setRecovery(formatRecoveryInput(v));
+          setError('');
+        }}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        placeholder="XXXX-XXXX"
+      />
+      {!!error && <Text style={styles.error}>{error}</Text>}
+      <Button
+        label={busy ? 'Vérification…' : 'Continuer'}
+        icon="arrow-forward"
+        onPress={() => void checkRecovery()}
+        disabled={busy || recovery.replace(/[^A-Za-z0-9]/g, '').length < 8}
+      />
+      <Button label="Retour au PIN" variant="ghost" icon="arrow-back" onPress={backToPin} />
+      <Button
+        label="Effacer et créer un nouveau profil"
+        variant="ghost"
+        icon="person-add-outline"
+        onPress={askWipe}
+      />
+    </View>
+  );
+
+  const newPinBlock = (
+    <View style={styles.actions}>
+      <Text style={styles.altHint}>Choisis un nouveau code PIN pour ce profil.</Text>
+      <Field
+        label="Nouveau PIN"
+        value={newPin}
+        onChangeText={(v) => {
+          setNewPin(v.replace(/[^\d]/g, '').slice(0, 8));
+          setError('');
+        }}
+        keyboardType="number-pad"
+        secureTextEntry
+        maxLength={8}
+      />
+      <Field
+        label="Confirmer le PIN"
+        value={newPin2}
+        onChangeText={(v) => {
+          setNewPin2(v.replace(/[^\d]/g, '').slice(0, 8));
+          setError('');
+        }}
+        keyboardType="number-pad"
+        secureTextEntry
+        maxLength={8}
+      />
+      {!!error && <Text style={styles.error}>{error}</Text>}
+      <Button
+        label={busy ? 'Enregistrement…' : 'Enregistrer le nouveau PIN'}
+        icon="lock-open-outline"
+        onPress={() => void saveNewPin()}
+        disabled={busy || newPin.length < 4}
+      />
+      <Button label="Retour" variant="ghost" icon="arrow-back" onPress={() => setMode('recover')} />
+    </View>
+  );
+
+  const wipeBlock = (
+    <View style={styles.actions}>
+      <Text style={styles.altHint}>
+        {canRecover
+          ? 'Dernier recours : ce carnet local sera vidé, puis tu créeras un nouveau profil.'
+          : 'Aucun code de secours n’est enregistré. Pour continuer, il faut effacer ce profil et en créer un autre.'}
+      </Text>
+      {!!error && <Text style={styles.error}>{error}</Text>}
+      <Button
+        label={busy ? 'Effacement…' : 'Effacer et créer un nouveau profil'}
+        variant="danger"
+        icon="trash-outline"
+        onPress={() => void confirmWipe()}
+        disabled={busy}
+      />
+      <Button
+        label={canRecover ? 'J’ai mon code de secours' : 'Retour au PIN'}
+        variant="ghost"
+        icon="arrow-back"
+        onPress={() => (canRecover ? setMode('recover') : backToPin())}
+      />
+    </View>
+  );
+
+  const authBlock =
+    mode === 'recover' ? recoverBlock : mode === 'newPin' ? newPinBlock : mode === 'wipe' ? wipeBlock : pinBlock;
+  const hint =
+    mode === 'recover'
+      ? 'Code de secours pour retrouver ce profil.'
+      : mode === 'newPin'
+        ? 'Nouveau PIN, puis Semence s’ouvre.'
+        : mode === 'wipe'
+          ? 'Cette action est définitive sur cet appareil.'
+          : 'Entre ton code PIN pour ouvrir Semence.';
 
   if (isCompact) {
     return (
@@ -198,8 +390,8 @@ export default function LockScreen() {
                   {salut}
                   {firstName ? `, ${firstName}` : ''}.
                 </Text>
-                <Text style={styles.hintMobile}>Entre ton code PIN pour ouvrir Semence.</Text>
-                {pinBlock}
+                <Text style={styles.hintMobile}>{hint}</Text>
+                {authBlock}
               </View>
               <View />
             </View>
@@ -226,7 +418,9 @@ export default function LockScreen() {
             </Text>
             <View style={styles.desktopBrandMeta}>
               <Ionicons name="leaf-outline" size={16} color={colors.ambre} />
-              <Text style={styles.desktopBrandMetaText}>Finance personnelle · FCFA · hors ligne</Text>
+              <Text style={styles.desktopBrandMetaText}>
+                Finance personnelle · {currencySuffix()} · hors ligne
+              </Text>
             </View>
           </View>
         </LinearGradient>
@@ -252,8 +446,8 @@ export default function LockScreen() {
                 </Text>
               </View>
             </View>
-            <Text style={styles.hintDesktop}>Saisis ton code PIN pour continuer.</Text>
-            {pinBlock}
+            <Text style={styles.hintDesktop}>{hint}</Text>
+            {authBlock}
           </View>
         </LinearGradient>
       </View>
@@ -384,6 +578,14 @@ const styles = StyleSheet.create({
     color: colors.ink2,
     textAlign: 'center',
     maxWidth: 280,
+  },
+  altHint: {
+    marginBottom: 16,
+    fontFamily: fonts.corps,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.ink2,
+    textAlign: 'center',
   },
   hintDesktop: {
     marginTop: 12,

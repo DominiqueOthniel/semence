@@ -1,9 +1,11 @@
 import { StyleSheet, Text, View, Pressable } from 'react-native';
+import { useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../../src/store/AppContext';
 import { DON_LABELS } from '../../src/types';
 import { fcfa } from '../../src/lib/money';
+import { buildKpiBoard } from '../../src/lib/kpis';
 import { useLayout, TOUCH } from '../../src/hooks/useLayout';
 import {
   Amount,
@@ -20,6 +22,7 @@ import {
 import { BrandMark } from '../../src/ui/BrandLogo';
 import { CashflowChart } from '../../src/ui/CashflowChart';
 import { DashboardInsights } from '../../src/ui/DashboardInsights';
+import { KpiBoard } from '../../src/ui/KpiBoard';
 import { VersetCard } from '../../src/ui/VersetCard';
 import { colors, fonts, radius } from '../../src/theme/colors';
 import { BotanicalField } from '../../src/ui/BotanicalMotif';
@@ -48,7 +51,16 @@ export default function HomeScreen() {
     setCycleOffset,
     goToCurrentCycle,
   } = useApp();
-  if (!settings || !envelopes || !position) return null;
+
+  const kpiData = useMemo(
+    () =>
+      settings
+        ? buildKpiBoard(settings.monthStartDay, yearTransactions, cycle.offset)
+        : null,
+    [settings, yearTransactions, cycle.offset],
+  );
+
+  if (!settings || !envelopes || !position || !kpiData) return null;
 
   const donLabel = DON_LABELS[settings.profil];
   const hour = new Date().getHours();
@@ -64,6 +76,11 @@ export default function HomeScreen() {
   const savingsRate =
     yearIncome > 0 ? Math.max(0, Math.round(((yearIncome - yearExpense) / yearIncome) * 100)) : 0;
   const isLive = cycle.status === 'en_cours';
+
+  const vsLabel = kpiData.previous
+    ? `${kpiData.previous.short} ${kpiData.previous.year}`
+    : 'le cycle précédent';
+  const kpiCard = <KpiBoard data={kpiData} vsLabel={vsLabel} />;
 
   const envelopesCard = (
     <SoftCard
@@ -219,7 +236,6 @@ export default function HomeScreen() {
 
   const insightsCard = (
     <DashboardInsights
-      perDay={envelopes.perDay}
       daysLeft={envelopes.daysLeft}
       resteAVivre={envelopes.resteAVivre}
       closed={!isLive}
@@ -295,15 +311,15 @@ export default function HomeScreen() {
             <BotanicalField variant="dark" density="card" style={{ borderRadius: radius.xl }} />
             <View style={styles.cardForeground}>
               <Text style={styles.darkLabel}>
-                {isLive ? 'Reste à vivre aujourd’hui' : `Cycle ${cycle.short} ${cycle.year}`}
+                {isLive ? 'Reste à vivre ce mois' : `Cycle ${cycle.short} ${cycle.year}`}
               </Text>
               <Text style={styles.darkAmount}>
-                {fcfa(Math.max(0, isLive ? envelopes.perDay : envelopes.courantSpent))}
+                {fcfa(Math.max(0, isLive ? envelopes.resteAVivre : envelopes.courantSpent))}
               </Text>
               <Text style={styles.darkMeta}>
                 {isLive
-                  ? `${envelopes.daysLeft} jour${envelopes.daysLeft > 1 ? 's' : ''} restants · ${fcfa(envelopes.resteAVivre)} de courant`
-                  : `Courant dépensé sur ${cycle.dayCount} jours · ${cycle.rangeLabel}`}
+                  ? `${fcfa(envelopes.courantBudget)} de courant · ${envelopes.daysLeft} jour${envelopes.daysLeft > 1 ? 's' : ''} restants`
+                  : `Courant dépensé · ${cycle.rangeLabel}`}
               </Text>
               {isLive ? ctas : cycleRecap}
             </View>
@@ -311,6 +327,7 @@ export default function HomeScreen() {
         </LinearGradient>
         <View style={[styles.body, { paddingHorizontal: gutter }]}>
           {cycleSwitch}
+          {kpiCard}
           <VersetCard profil={settings.profil} />
           {insightsCard}
           {chartCard}
@@ -349,20 +366,22 @@ export default function HomeScreen() {
 
         {cycleSwitch}
 
+        {kpiCard}
+
         <View style={[styles.deskTopRow, styles.deskTopRowFixed]}>
           <View style={[styles.darkCard, styles.cardShadow]}>
             <BotanicalField variant="dark" density="card" style={{ borderRadius: radius.xl }} />
             <View style={styles.cardForeground}>
               <Text style={styles.darkLabel}>
-                {isLive ? 'Reste à vivre' : `Cycle ${cycle.short} ${cycle.year}`}
+                {isLive ? 'Reste à vivre ce mois' : `Cycle ${cycle.short} ${cycle.year}`}
               </Text>
               <Text style={styles.darkAmount} numberOfLines={1}>
-                {fcfa(Math.max(0, isLive ? envelopes.perDay : envelopes.courantSpent))}
+                {fcfa(Math.max(0, isLive ? envelopes.resteAVivre : envelopes.courantSpent))}
               </Text>
               <Text style={styles.darkMeta}>
                 {isLive
-                  ? `${envelopes.daysLeft} jour${envelopes.daysLeft > 1 ? 's' : ''} · ${fcfa(envelopes.resteAVivre)} courant`
-                  : `${cycle.dayCount} jours · ${cycle.rangeLabel}`}
+                  ? `${fcfa(envelopes.courantBudget)} de courant · ${envelopes.daysLeft} jour${envelopes.daysLeft > 1 ? 's' : ''} restants`
+                  : `Courant dépensé · ${cycle.rangeLabel}`}
               </Text>
               {isLive ? ctas : cycleRecap}
             </View>

@@ -10,8 +10,12 @@ export interface Settings {
   id: number;
   name: string;
   phone: string;
+  phoneCode: string;
+  currency: string;
   profil: Profil;
   pinHash: string | null;
+  /** Empreinte du code de secours, pour un PIN oublié. */
+  recoveryHash: string | null;
   monthStartDay: number;
   eveningHour: number;
   eveningMinute: number;
@@ -85,6 +89,10 @@ export interface SavingsGoal {
   target: number;
   current: number;
   dueDate: string | null;
+  /** Durée prévue, en mois. */
+  months: number | null;
+  /** Versement prévu chaque mois. */
+  monthlyBudget: number | null;
   createdAt: string;
 }
 

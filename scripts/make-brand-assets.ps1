@@ -459,7 +459,11 @@ public static class BrandTool
                     icon.Save(System.IO.Path.Combine(outDir, "brand", "marque-semence-or.png"), ImageFormat.Png);
                     icon.Save(System.IO.Path.Combine(outDir, "icon.png"), ImageFormat.Png);
                     icon.Save(System.IO.Path.Combine(outDir, "splash-icon.png"), ImageFormat.Png);
-                    icon.Save(System.IO.Path.Combine(outDir, "favicon.png"), ImageFormat.Png);
+                }
+
+                using (Bitmap fav = Canvas(mark, 256, 0.86, Cream))
+                {
+                    fav.Save(System.IO.Path.Combine(outDir, "favicon.png"), ImageFormat.Png);
                 }
 
                 using (Bitmap fg = Canvas(mark, 1024, 0.46, null))

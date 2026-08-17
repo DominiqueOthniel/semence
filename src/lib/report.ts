@@ -46,6 +46,7 @@ export function buildMonthlyCsvReport(input: {
   const lines: string[] = [];
   lines.push('Rapport Semence');
   lines.push(`Profil;${csvEscape(settings.name)}`);
+  lines.push(`Devise;${csvEscape(settings.currency || 'XAF')}`);
   lines.push(`Période;${csvEscape(`${MONTH_LABELS[month]} ${year}`)}`);
   lines.push(`Revenus;${revenus}`);
   lines.push(`Dépenses;${depenses}`);

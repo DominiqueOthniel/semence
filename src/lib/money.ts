@@ -1,9 +1,26 @@
-/** Format entiers FCFA sans décimales. */
-export function fcfa(n: number): string {
+import { currencyMeta, normalizeCurrency, type CurrencyCode } from './locale';
+
+let activeCurrency: CurrencyCode = 'XAF';
+
+export function setActiveCurrency(code?: string | null) {
+  activeCurrency = normalizeCurrency(code);
+}
+
+export function getActiveCurrency(): CurrencyCode {
+  return activeCurrency;
+}
+
+export function currencySuffix(code?: string | null): string {
+  return currencyMeta(code ?? activeCurrency).suffix;
+}
+
+/** Format entier dans la devise active (ou celle passée). */
+export function fcfa(n: number, currency?: string | null): string {
   const rounded = Math.round(n);
   const abs = Math.abs(rounded);
   const formatted = abs.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0');
-  return `${rounded < 0 ? '−' : ''}${formatted}\u00A0FCFA`;
+  const suffix = currencySuffix(currency);
+  return `${rounded < 0 ? '−' : ''}${formatted}\u00A0${suffix}`;
 }
 
 export function fcfaShort(n: number): string {
@@ -21,7 +38,6 @@ export interface EnvelopeSplit {
   epargne: number;
   semence: number;
   courant: number;
-  perDay: number;
 }
 
 export function splitIncome(
@@ -29,7 +45,6 @@ export function splitIncome(
   donRate: number,
   epargneRate: number,
   semenceRate: number,
-  days = 30,
 ): EnvelopeSplit {
   const base = Math.max(0, income);
   const don = Math.round((base * donRate) / 100);
@@ -41,7 +56,6 @@ export function splitIncome(
     epargne,
     semence,
     courant,
-    perDay: days > 0 ? Math.round(courant / days) : 0,
   };
 }
 

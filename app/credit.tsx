@@ -3,7 +3,7 @@ import { useLayoutEffect, useState } from 'react';
 import { Alert, Text } from 'react-native';
 import { addCredit } from '../src/db/database';
 import { useApp } from '../src/store/AppContext';
-import { fcfa, parseFcfaInput } from '../src/lib/money';
+import { currencySuffix, fcfa, parseFcfaInput } from '../src/lib/money';
 import { Body, Button, Field, Screen } from '../src/ui/primitives';
 import { colors, fonts } from '../src/theme/colors';
 
@@ -40,12 +40,12 @@ export default function CreditScreen() {
   return (
     <Screen maxWidth="form" scroll keyboard>
       <Body style={{ marginBottom: 14 }}>
-        Ce qui compte, ce n’est pas le taux : c’est ce que l’emprunt t’a coûté en FCFA.
+        Ce qui compte, ce n’est pas le taux : c’est ce que l’emprunt t’a coûté en {currencySuffix()}.
       </Body>
       <Field label="Libellé" value={label} onChangeText={setLabel} />
-      <Field label="Montant reçu (FCFA)" value={received} onChangeText={setReceived} keyboardType="number-pad" />
+      <Field label={`Montant reçu (${currencySuffix()})`} value={received} onChangeText={setReceived} keyboardType="number-pad" />
       <Field
-        label="Total à rembourser (FCFA)"
+        label={`Total à rembourser (${currencySuffix()})`}
         value={totalDue}
         onChangeText={setTotalDue}
         keyboardType="number-pad"
