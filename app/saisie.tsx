@@ -1,12 +1,14 @@
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../src/store/AppContext';
 import { addExpense, addIncome } from '../src/db/database';
 import type { EnvelopeKind } from '../src/types';
 import { DON_LABELS } from '../src/types';
-import { currencySuffix, fcfa, parseFcfaInput } from '../src/lib/money';
+import { currencySuffix, fcfa, moneyKeyboard, parseFcfaInput, sanitizeMoneyInput } from '../src/lib/money';
 import { Body, Button, Chip, Field, Screen, Segment } from '../src/ui/primitives';
+import { MascotTip } from '../src/ui/Mascot';
+import { MASCOT_COPY, mascotStage } from '../src/lib/mascot';
 import { colors, fonts } from '../src/theme/colors';
 
 const FAV_ICONS = ['car-outline', 'restaurant-outline', 'phone-portrait-outline', 'cafe-outline'] as const;
@@ -16,12 +18,14 @@ export default function SaisieScreen() {
   const isIncome = mode === 'revenu';
   const navigation = useNavigation();
   const router = useRouter();
-  const { accounts, settings, favorites, refresh, goToCurrentCycle } = useApp();
+  const { accounts, settings, favorites, goals, refresh, goToCurrentCycle } = useApp();
 
   const [accountId, setAccountId] = useState<number | null>(null);
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [envelope, setEnvelope] = useState<EnvelopeKind>('courant');
+  const [options, setOptions] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -37,20 +41,30 @@ export default function SaisieScreen() {
     if (accounts.length && accountId == null) setAccountId(accounts[0].id);
   }, [accounts, accountId]);
 
+  async function record(value: number, label: string) {
+    if (!accountId || busy) return;
+    setBusy(true);
+    try {
+      if (isIncome) {
+        await addIncome(accountId, value, label);
+      } else {
+        await addExpense(accountId, value, envelope, label);
+      }
+      await refresh();
+      goToCurrentCycle();
+      router.back();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function save() {
     const value = parseFcfaInput(amount);
     if (!value || !accountId) {
-      Alert.alert('Montant', 'Entre un montant valide et choisis un compte.');
+      Alert.alert('Montant', 'Entre un montant valide.');
       return;
     }
-    if (isIncome) {
-      await addIncome(accountId, value, note || 'Revenu');
-    } else {
-      await addExpense(accountId, value, envelope, note || 'Dépense');
-    }
-    await refresh();
-    goToCurrentCycle();
-    router.back();
+    await record(value, note || (isIncome ? 'Revenu' : 'Dépense'));
   }
 
   const envelopeOptions: { value: EnvelopeKind; label: string; icon: 'heart-outline' | 'save-outline' | 'leaf-outline' | 'cart-outline' }[] = [
@@ -64,49 +78,94 @@ export default function SaisieScreen() {
 
   return (
     <Screen maxWidth="form" scroll keyboard>
-      {!isIncome && (
+      {isIncome ? (
+        <MascotTip
+          mood="income"
+          stage={mascotStage(goals)}
+          title={MASCOT_COPY.income.title}
+          text={MASCOT_COPY.income.text}
+        />
+      ) : null}
+      {!isIncome && favorites.length > 0 ? (
         <>
-          <Text style={styles.label}>Enveloppe</Text>
-          <Segment value={envelope} onChange={setEnvelope} options={envelopeOptions} />
+          <Text style={styles.lead}>Un tap enregistre tout de suite, sur le courant.</Text>
+          <View style={styles.favs}>
+            {favorites.map((f, i) => (
+              <Chip
+                key={f.id}
+                icon={FAV_ICONS[i % FAV_ICONS.length]}
+                label={`${f.label} · ${fcfa(f.amount)}`}
+                onPress={() => void record(f.amount, f.label)}
+              />
+            ))}
+          </View>
         </>
+      ) : (
+        <Body style={{ marginBottom: 12 }}>
+          {isIncome ? 'Note un revenu, puis enregistre.' : 'Montant, puis enregistre.'}
+        </Body>
       )}
 
-      <Text style={styles.label}>Compte</Text>
-      <Segment
-        value={String(accountId ?? '')}
-        onChange={(v) => setAccountId(Number(v))}
-        options={accounts.map((a) => ({
-          value: String(a.id),
-          label: a.name,
-          icon: 'wallet-outline' as const,
-        }))}
+      <Field
+        label={`Montant (${currencySuffix()})`}
+        value={amount}
+        onChangeText={(v) => setAmount(sanitizeMoneyInput(v))}
+        keyboardType={moneyKeyboard()}
+      />
+      <Field
+        label="Libellé (optionnel)"
+        value={note}
+        onChangeText={setNote}
+        placeholder={isIncome ? 'Salaire' : 'Déjeuner'}
+      />
+      <Button
+        label={busy ? 'Enregistrement…' : 'Enregistrer'}
+        icon="checkmark-circle-outline"
+        onPress={() => void save()}
       />
 
-      {!isIncome && (
-        <View style={styles.favs}>
-          {favorites.map((f, i) => (
-            <Chip
-              key={f.id}
-              icon={FAV_ICONS[i % FAV_ICONS.length]}
-              label={`${f.label} · ${fcfa(f.amount)}`}
-              onPress={() => {
-                setAmount(String(f.amount));
-                setNote(f.label);
-              }}
-            />
-          ))}
-        </View>
-      )}
+      <Pressable
+        onPress={() => setOptions((v) => !v)}
+        accessibilityRole="button"
+        accessibilityLabel={options ? 'Masquer le compte et l’enveloppe' : 'Choisir le compte ou l’enveloppe'}
+        style={styles.moreBtn}
+      >
+        <Text style={styles.moreText}>
+          {options ? 'Masquer le compte et l’enveloppe' : 'Autre compte ou enveloppe'}
+        </Text>
+      </Pressable>
 
-      <Field label={`Montant (${currencySuffix()})`} value={amount} onChangeText={setAmount} keyboardType="number-pad" />
-      <Field label="Libellé" value={note} onChangeText={setNote} placeholder={isIncome ? 'Salaire' : 'Déjeuner'} />
-      <Body style={{ marginBottom: 16 }}>Montants entiers, sans décimales.</Body>
-      <Button label="Enregistrer" icon="checkmark-circle-outline" onPress={save} />
+      {options ? (
+        <>
+          {!isIncome ? (
+            <>
+              <Text style={styles.label}>Enveloppe</Text>
+              <Segment value={envelope} onChange={setEnvelope} options={envelopeOptions} />
+            </>
+          ) : null}
+          <Text style={styles.label}>Compte</Text>
+          <Segment
+            value={String(accountId ?? '')}
+            onChange={(v) => setAccountId(Number(v))}
+            options={accounts.map((a) => ({
+              value: String(a.id),
+              label: a.name,
+              icon: 'wallet-outline' as const,
+            }))}
+          />
+        </>
+      ) : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  lead: {
+    fontFamily: fonts.corps,
+    fontSize: 15,
+    color: colors.ink2,
+    marginBottom: 12,
+  },
   label: {
     fontFamily: fonts.corpsSemi,
     fontSize: 12,
@@ -114,11 +173,22 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: colors.ink3,
     marginBottom: 8,
+    marginTop: 8,
   },
   favs: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 16,
+  },
+  moreBtn: {
+    marginTop: 18,
+    minHeight: 40,
+    justifyContent: 'center',
+  },
+  moreText: {
+    fontFamily: fonts.corpsSemi,
+    fontSize: 13,
+    color: colors.or,
   },
 });

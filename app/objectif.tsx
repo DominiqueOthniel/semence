@@ -4,8 +4,10 @@ import { Alert } from 'react-native';
 import { addGoal, contributeGoal, deleteGoal, updateGoal } from '../src/db/database';
 import { useApp } from '../src/store/AppContext';
 import { planGoal } from '../src/lib/goals';
-import { currencySuffix, fcfa, parseFcfaInput } from '../src/lib/money';
+import { currencySuffix, fcfa, moneyKeyboard, moneyToInput, parseFcfaInput, sanitizeMoneyInput } from '../src/lib/money';
 import { Body, Button, Field, Screen, Segment, SoftCard, Title } from '../src/ui/primitives';
+import { MascotTip } from '../src/ui/Mascot';
+import { mascotStage } from '../src/lib/mascot';
 import { colors } from '../src/theme/colors';
 
 const DURATION_OPTS = [
@@ -27,7 +29,7 @@ export default function ObjectifScreen() {
   );
 
   const [name, setName] = useState(existing?.name ?? '');
-  const [target, setTarget] = useState(existing ? String(existing.target) : '');
+  const [target, setTarget] = useState(existing ? moneyToInput(existing.target) : '');
   const [durationKey, setDurationKey] = useState(() => {
     const m = existing?.months;
     if (!m) return '6';
@@ -38,7 +40,7 @@ export default function ObjectifScreen() {
       ? String(existing.months)
       : '',
   );
-  const [monthly, setMonthly] = useState(existing?.monthlyBudget ? String(existing.monthlyBudget) : '');
+  const [monthly, setMonthly] = useState(existing?.monthlyBudget ? moneyToInput(existing.monthlyBudget) : '');
   const [verse, setVerse] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -132,6 +134,14 @@ export default function ObjectifScreen() {
   return (
     <Screen maxWidth="form" scroll keyboard>
       <Title>{existing ? existing.name : 'Un objectif, un rythme.'}</Title>
+      {existing && existing.target > 0 && existing.current >= existing.target ? (
+        <MascotTip
+          mood="goal"
+          stage={mascotStage(goals)}
+          title="Objectif atteint"
+          text="La semence pousse un peu. Garde le rythme, ou ouvre le suivant."
+        />
+      ) : null}
       <Body style={{ marginBottom: 18 }}>
         Fixe un budget et une durée. Semence calcule le versement mensuel, tu peux l’ajuster.
       </Body>
@@ -139,8 +149,8 @@ export default function ObjectifScreen() {
       <Field
         label={`Budget total (${currencySuffix()})`}
         value={target}
-        onChangeText={setTarget}
-        keyboardType="number-pad"
+        onChangeText={(v) => setTarget(sanitizeMoneyInput(v))}
+        keyboardType={moneyKeyboard()}
       />
       <Body style={{ marginBottom: 8 }}>Durée</Body>
       <Segment value={durationKey} onChange={setDurationKey} options={[...DURATION_OPTS]} />
@@ -156,9 +166,9 @@ export default function ObjectifScreen() {
       <Field
         label={`Versement par mois (${currencySuffix()})`}
         value={monthly}
-        onChangeText={setMonthly}
-        keyboardType="number-pad"
-        placeholder={planned.monthlyBudget ? String(planned.monthlyBudget) : '0'}
+        onChangeText={(v) => setMonthly(sanitizeMoneyInput(v))}
+        keyboardType={moneyKeyboard()}
+        placeholder={planned.monthlyBudget ? moneyToInput(planned.monthlyBudget) : '0'}
         hint={
           planned.monthlyBudget
             ? `${fcfa(planned.target)} sur ${planned.months ?? 0} mois, soit ${fcfa(planned.monthlyBudget)} / mois`
@@ -174,8 +184,8 @@ export default function ObjectifScreen() {
           <Field
             label={`Verser maintenant (${currencySuffix()})`}
             value={verse}
-            onChangeText={setVerse}
-            keyboardType="number-pad"
+            onChangeText={(v) => setVerse(sanitizeMoneyInput(v))}
+            keyboardType={moneyKeyboard()}
           />
           <Button
             label={busy ? 'Enregistrement…' : 'Ajouter ce versement'}

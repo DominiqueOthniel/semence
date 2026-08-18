@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { Alert, StyleSheet, Text } from 'react-native';
 import { useApp } from '../src/store/AppContext';
 import { transfer } from '../src/db/database';
-import { currencySuffix, fcfa, parseFcfaInput } from '../src/lib/money';
+import { currencySuffix, fcfa, moneyKeyboard, parseFcfaInput, sanitizeMoneyInput } from '../src/lib/money';
 import { Button, Field, Screen, Segment } from '../src/ui/primitives';
 import { colors, fonts } from '../src/theme/colors';
 
@@ -56,7 +56,12 @@ export default function TransfertScreen() {
       <Segment value={fromId} onChange={setFromId} options={opts} />
       <Text style={styles.label}>Vers</Text>
       <Segment value={toId} onChange={setToId} options={opts} />
-      <Field label={`Montant (${currencySuffix()})`} value={amount} onChangeText={setAmount} keyboardType="number-pad" />
+      <Field
+        label={`Montant (${currencySuffix()})`}
+        value={amount}
+        onChangeText={(v) => setAmount(sanitizeMoneyInput(v))}
+        keyboardType={moneyKeyboard()}
+      />
       <Field label="Note" value={note} onChangeText={setNote} />
       <Button label="Transférer" icon="swap-horizontal" onPress={save} />
     </Screen>

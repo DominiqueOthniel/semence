@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../../src/store/AppContext';
 import { addExpense, markEveningDone } from '../../src/db/database';
-import { currencySuffix, fcfa, parseFcfaInput } from '../../src/lib/money';
+import { currencySuffix, fcfa, moneyKeyboard, parseFcfaInput, sanitizeMoneyInput } from '../../src/lib/money';
 import { notify } from '../../src/lib/notify';
 import { useLayout } from '../../src/hooks/useLayout';
 import {
@@ -22,6 +22,8 @@ import {
 } from '../../src/ui/primitives';
 import { versetDuJour } from '../../src/lib/versets';
 import { colors, fonts, radius } from '../../src/theme/colors';
+import { MascotTip } from '../../src/ui/Mascot';
+import { MASCOT_COPY, mascotStage } from '../../src/lib/mascot';
 
 const FAV_ICONS = ['car-outline', 'restaurant-outline', 'phone-portrait-outline', 'cafe-outline'] as const;
 
@@ -29,7 +31,7 @@ type DraftLine = { id: string; label: string; amount: number };
 
 export default function SoirScreen() {
   const { isCompact } = useLayout();
-  const { settings, accounts, favorites, envelopes, eveningDone, streak, refresh, cycle, goToCurrentCycle } =
+  const { settings, accounts, favorites, envelopes, eveningDone, streak, goals, refresh, cycle, goToCurrentCycle } =
     useApp();
   const [drafts, setDrafts] = useState<DraftLine[]>([]);
   const [extra, setExtra] = useState('');
@@ -181,6 +183,12 @@ export default function SoirScreen() {
 
   const formBlock = (
     <>
+      <MascotTip
+        mood="evening"
+        stage={mascotStage(goals)}
+        title={MASCOT_COPY.evening.title}
+        text={MASCOT_COPY.evening.text}
+      />
       {isCompact ? (
         <View style={styles.head}>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -229,8 +237,8 @@ export default function SoirScreen() {
       <Field
         label={`Autre montant (${currencySuffix()})`}
         value={extra}
-        onChangeText={setExtra}
-        keyboardType="number-pad"
+        onChangeText={(v) => setExtra(sanitizeMoneyInput(v))}
+        keyboardType={moneyKeyboard()}
         placeholder="0"
         hint="Optionnel. S’ajoute au total ci-dessus."
       />

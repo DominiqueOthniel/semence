@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, Pressable } from 'react-native';
-import { useMemo } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../../src/store/AppContext';
 import { DON_LABELS } from '../../src/types';
@@ -27,6 +28,9 @@ import { VersetCard } from '../../src/ui/VersetCard';
 import { colors, fonts, radius } from '../../src/theme/colors';
 import { BotanicalField } from '../../src/ui/BotanicalMotif';
 import { CycleSwitch } from '../../src/ui/CycleSwitch';
+import { QuickMove } from '../../src/ui/QuickMove';
+import { MascotTip, useMascotCue } from '../../src/ui/Mascot';
+import { mascotStage, pickHomeCue } from '../../src/lib/mascot';
 
 function capitalizeFirst(raw?: string) {
   if (!raw) return '';
@@ -44,8 +48,13 @@ export default function HomeScreen() {
     position,
     creditYear,
     eveningDone,
+    streak,
     transactions,
     yearTransactions,
+    accounts,
+    favorites,
+    goals,
+    refresh,
     cycle,
     shiftCycle,
     setCycleOffset,
@@ -59,6 +68,30 @@ export default function HomeScreen() {
         : null,
     [settings, yearTransactions, cycle.offset],
   );
+
+  const homeCue = useMemo(() => {
+    if (!settings || !envelopes) return null;
+    const donName = DON_LABELS[settings.profil];
+    return pickHomeCue({
+      live: cycle.status === 'en_cours',
+      envelopes: [
+        ...(settings.profil !== 'aucun' && donName
+          ? [{ label: donName, spent: envelopes.donSpent, budget: envelopes.donBudget }]
+          : []),
+        { label: 'Épargne', spent: envelopes.epargneSpent, budget: envelopes.epargneBudget },
+        { label: 'Semence', spent: envelopes.semenceSpent, budget: envelopes.semenceBudget },
+        { label: 'Courant', spent: envelopes.courantSpent, budget: envelopes.courantBudget },
+      ],
+      goals,
+      transactions,
+      streak,
+      eveningDone,
+      settings,
+    });
+  }, [settings, envelopes, cycle.status, goals, transactions, streak, eveningDone]);
+
+  const { visible: mascotCue, dismiss: dismissMascot } = useMascotCue(homeCue);
+  const sproutStage = mascotStage(goals);
 
   if (!settings || !envelopes || !position || !kpiData) return null;
 
@@ -80,7 +113,44 @@ export default function HomeScreen() {
   const vsLabel = kpiData.previous
     ? `${kpiData.previous.short} ${kpiData.previous.year}`
     : 'le cycle précédent';
-  const kpiCard = <KpiBoard data={kpiData} vsLabel={vsLabel} />;
+  const kpiCard = (
+    <MoreFold title="Comparer aux autres mois" hint="Revenus, dépenses, solde">
+      <KpiBoard data={kpiData} vsLabel={vsLabel} />
+    </MoreFold>
+  );
+
+  const quickMove = (
+    <QuickMove
+      accounts={accounts}
+      favorites={favorites}
+      transactions={transactions}
+      onSaved={async () => {
+        await refresh();
+        goToCurrentCycle();
+      }}
+      onMore={() => router.push('/saisie')}
+      onIncome={() => router.push({ pathname: '/saisie', params: { mode: 'revenu' } })}
+    />
+  );
+
+  const mascotCard = mascotCue ? (
+    <MascotTip
+      mood={mascotCue.mood}
+      stage={sproutStage}
+      title={mascotCue.title}
+      text={mascotCue.text}
+      onDismiss={() => void dismissMascot()}
+      onPress={
+        mascotCue.mood === 'evening'
+          ? () => router.push('/(tabs)/soir')
+          : mascotCue.mood === 'income'
+            ? () => router.push('/(tabs)/plus')
+            : mascotCue.mood === 'goal'
+              ? () => router.push('/objectif')
+              : undefined
+      }
+    />
+  ) : null;
 
   const envelopesCard = (
     <SoftCard
@@ -134,27 +204,6 @@ export default function HomeScreen() {
     </SoftCard>
   );
 
-  const positionCard = (
-    <SoftCard>
-      <View style={styles.cardHead}>
-        <IconBadge name="pie-chart-outline" bg={colors.ambreWash} color={colors.ambre} />
-        <Eyebrow>Position réelle</Eyebrow>
-      </View>
-      <Amount style={{ marginBottom: 4 }}>{fcfa(position.net)}</Amount>
-      <Row label="Disponible" value={fcfa(position.liquid)} icon="wallet-outline" />
-      <Row label="Épargne objectifs" value={fcfa(position.savings)} tone="vert" icon="flag-outline" />
-      <Row label="On me doit" value={fcfa(position.owedToMe)} tone="vert" icon="arrow-down-outline" />
-      <Row label="Je dois · personnes" value={fcfa(position.iOwePeople)} tone="rouge" icon="arrow-up-outline" />
-      <Row
-        label="Je dois · crédits"
-        value={fcfa(position.iOweCredits)}
-        tone="rouge"
-        icon="card-outline"
-        last
-      />
-    </SoftCard>
-  );
-
   const soirCard = !eveningDone ? (
     <Pressable
       onPress={() => router.push('/(tabs)/soir')}
@@ -187,7 +236,7 @@ export default function HomeScreen() {
       {transactions.length === 0 ? (
         <Body>Aucune opération sur ce cycle.</Body>
       ) : (
-        transactions.slice(0, isWide ? 10 : 6).map((t, i, arr) => (
+        transactions.slice(0, isWide ? 8 : 4).map((t, i, arr) => (
           <Row
             key={t.id}
             label={t.note || t.type}
@@ -249,6 +298,13 @@ export default function HomeScreen() {
         { label: 'Courant', spent: envelopes.courantSpent, budget: envelopes.courantBudget },
       ]}
     />
+  );
+
+  const extraCards = (
+    <MoreFold title="Graphique et conseils" hint="Flux et alertes du cycle">
+      {insightsCard}
+      {chartCard}
+    </MoreFold>
   );
 
   const ctas = (
@@ -321,21 +377,21 @@ export default function HomeScreen() {
                   ? `${fcfa(envelopes.courantBudget)} de courant · ${envelopes.daysLeft} jour${envelopes.daysLeft > 1 ? 's' : ''} restants`
                   : `Courant dépensé · ${cycle.rangeLabel}`}
               </Text>
-              {isLive ? ctas : cycleRecap}
+              {isLive ? null : cycleRecap}
             </View>
           </View>
         </LinearGradient>
         <View style={[styles.body, { paddingHorizontal: gutter }]}>
+          {mascotCard}
+          {quickMove}
           {cycleSwitch}
-          {kpiCard}
-          <VersetCard profil={settings.profil} />
-          {insightsCard}
-          {chartCard}
           {envelopesCard}
-          {positionCard}
+          {activityCard}
           {soirCard}
           {creditCard}
-          {activityCard}
+          {kpiCard}
+          {extraCards}
+          <VersetCard profil={settings.profil} />
         </View>
       </Screen>
     );
@@ -366,7 +422,9 @@ export default function HomeScreen() {
 
         {cycleSwitch}
 
-        {kpiCard}
+        {mascotCard}
+
+        {quickMove}
 
         <View style={[styles.deskTopRow, styles.deskTopRowFixed]}>
           <View style={[styles.darkCard, styles.cardShadow]}>
@@ -404,6 +462,8 @@ export default function HomeScreen() {
             </View>
           </View>
         </View>
+
+        {kpiCard}
 
         <View style={[styles.deskMidRow, styles.deskMidRowFixed]}>
           <View style={styles.deskMidMain}>{chartCard}</View>
@@ -458,6 +518,36 @@ export default function HomeScreen() {
         </View>
       </LinearGradient>
     </Screen>
+  );
+}
+
+function MoreFold({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.fold}>
+      <Pressable
+        onPress={() => setOpen((v) => !v)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={title}
+        style={({ pressed }) => [styles.foldBtn, pressed && { opacity: 0.88 }]}
+      >
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.foldTitle}>{title}</Text>
+          <Text style={styles.foldHint}>{hint}</Text>
+        </View>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.or} />
+      </Pressable>
+      {open ? <View style={styles.foldBody}>{children}</View> : null}
+    </View>
   );
 }
 
@@ -783,6 +873,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.white,
     marginTop: 2,
+  },
+  fold: {
+    marginBottom: 8,
+  },
+  foldBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: TOUCH,
+    paddingVertical: 8,
+    gap: 12,
+  },
+  foldTitle: {
+    fontFamily: fonts.corpsSemi,
+    fontSize: 15,
+    color: colors.ink,
+  },
+  foldHint: {
+    fontFamily: fonts.corps,
+    fontSize: 12,
+    color: colors.ink3,
+    marginTop: 2,
+  },
+  foldBody: {
+    paddingBottom: 4,
   },
   body: { paddingTop: 4 },
   cardHead: {

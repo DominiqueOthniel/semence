@@ -13,9 +13,9 @@ import type {
   Transaction,
 } from '../types';
 import { DEFAULT_RATES } from '../types';
-import { nowISO, todayISO } from '../lib/money';
+import { nowISO, todayISO, convertAmount } from '../lib/money';
 import { cycleAtOffset } from '../lib/cycle';
-import { DEFAULT_CURRENCY, DEFAULT_PHONE_CODE, normalizeCurrency, normalizePhoneCode } from '../lib/locale';
+import { DEFAULT_CURRENCY, DEFAULT_PHONE_CODE, favoritesForCurrency, normalizeCurrency, normalizePhoneCode } from '../lib/locale';
 import { generateRecoveryCode, normalizeRecovery } from '../lib/recovery';
 
 const KEY = 'semence.v1';
@@ -98,13 +98,13 @@ function defaultCategories(): Category[] {
   }));
 }
 
-function defaultFavorites(): FavoriteAmount[] {
-  return [
-    { id: 1, label: 'Taxi', amount: 300, categoryId: null },
-    { id: 2, label: 'Déjeuner', amount: 1500, categoryId: null },
-    { id: 3, label: 'Crédit tél.', amount: 1000, categoryId: null },
-    { id: 4, label: 'Pain', amount: 200, categoryId: null },
-  ];
+function defaultFavorites(currency = DEFAULT_CURRENCY): FavoriteAmount[] {
+  return favoritesForCurrency(currency).map((f, i) => ({
+    id: i + 1,
+    label: f.label,
+    amount: f.amount,
+    categoryId: null,
+  }));
 }
 
 function emptyStore(): Store {
@@ -186,6 +186,58 @@ export async function updateSettings(patch: Partial<{
 }>): Promise<Settings> {
   const store = await load();
   store.settings = normalizeSettings({ ...store.settings, ...patch });
+  await save(store);
+  return { ...store.settings };
+}
+
+function sameFavoriteSet(current: FavoriteAmount[], currency: string) {
+  const expected = defaultFavorites(currency);
+  if (current.length !== expected.length) return false;
+  return expected.every((item, i) => current[i]?.label === item.label && current[i]?.amount === item.amount);
+}
+
+export async function applyCurrencyChange(nextCode: string): Promise<Settings> {
+  const store = await load();
+  const from = normalizeCurrency(store.settings.currency);
+  const to = normalizeCurrency(nextCode);
+  if (from === to) {
+    store.settings = normalizeSettings({ ...store.settings, currency: to });
+    await save(store);
+    return { ...store.settings };
+  }
+
+  const conv = (n: number) => convertAmount(n, from, to);
+  store.settings.monthlyIncome = conv(store.settings.monthlyIncome);
+  store.settings.currency = to;
+
+  if (sameFavoriteSet(store.favorites, from)) {
+    store.favorites = defaultFavorites(to);
+  } else {
+    store.favorites = store.favorites.map((f) => ({ ...f, amount: conv(f.amount) }));
+  }
+
+  store.accounts = store.accounts.map((a) => ({ ...a, balance: conv(a.balance) }));
+  store.transactions = store.transactions.map((t) => ({ ...t, amount: conv(t.amount) }));
+  store.debts = store.debts.map((d) => ({
+    ...d,
+    amount: conv(d.amount),
+    remaining: conv(d.remaining),
+  }));
+  store.credits = store.credits.map((c) => ({
+    ...c,
+    received: conv(c.received),
+    totalDue: conv(c.totalDue),
+    remaining: conv(c.remaining),
+  }));
+  store.goals = store.goals.map((g) => ({
+    ...g,
+    target: conv(g.target),
+    current: conv(g.current),
+    monthlyBudget: g.monthlyBudget == null ? null : conv(g.monthlyBudget),
+  }));
+  store.eveningLogs = store.eveningLogs.map((e) => ({ ...e, amount: conv(e.amount) }));
+
+  store.settings = normalizeSettings(store.settings);
   await save(store);
   return { ...store.settings };
 }
@@ -280,6 +332,8 @@ export async function completeOnboarding(input: {
   });
 
   const store = await load();
+  store.favorites = defaultFavorites(normalizeCurrency(input.currency));
+  await save(store);
   if (store.accounts.filter((a) => !a.archived).length === 0) {
     const defaults: Array<[string, AccountType]> = [
       ['Espèces', 'especes'],
@@ -305,7 +359,7 @@ export async function completeOnboarding(input: {
     if (cash) {
       await addIncome(cash.id, input.monthlyIncome, 'Revenu du mois', todayISO());
       const { splitIncome } = await import('../lib/money');
-      const split = splitIncome(input.monthlyIncome, donRate, input.epargneRate, input.semenceRate);
+      const split = splitIncome(input.monthlyIncome, donRate, input.epargneRate, input.semenceRate, input.currency);
       if (donRate > 0 && split.don > 0) {
         await addExpense(cash.id, split.don, 'don', `Prélèvement ${input.profil}`, todayISO());
       }

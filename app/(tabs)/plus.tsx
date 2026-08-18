@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useApp } from '../../src/store/AppContext';
-import { exportBackup, updateSettings } from '../../src/db/database';
+import { exportBackup, updateSettings, applyCurrencyChange } from '../../src/db/database';
 import { DON_LABELS, PROFIL_LABELS } from '../../src/types';
 import { formatPhone, type CurrencyCode } from '../../src/lib/locale';
 import { goalPace } from '../../src/lib/goals';
-import { currencySuffix, fcfa, setActiveCurrency } from '../../src/lib/money';
+import { currencySuffix, fcfa, setActiveCurrency, splitIncome } from '../../src/lib/money';
 import { BudgetEditor } from '../../src/ui/BudgetEditor';
 import { CurrencyPicker, PhoneField } from '../../src/ui/LocaleFields';
 import { notify } from '../../src/lib/notify';
 import { buildMonthlyCsvReport, reportFileName } from '../../src/lib/report';
+import { shareMonthlyPdf } from '../../src/lib/shareReport';
 import { useLayout } from '../../src/hooks/useLayout';
 import {
   Avatar,
@@ -65,6 +66,14 @@ export default function PlusScreen() {
 
   if (!settings) return null;
 
+  const split = splitIncome(
+    settings.monthlyIncome,
+    settings.donRate,
+    settings.epargneRate,
+    settings.semenceRate,
+    settings.currency,
+  );
+
   const avatarValue: AvatarChoice = draftAvatar ?? {
     preset: settings.avatarPreset || 'initials',
     photo: settings.avatarPhoto,
@@ -79,6 +88,21 @@ export default function PlusScreen() {
       });
     } catch (e) {
       notify('Sauvegarde', String(e));
+    }
+  }
+
+  async function exportMonthlyPdf() {
+    if (!settings) return;
+    try {
+      const now = new Date();
+      await shareMonthlyPdf({
+        settings,
+        transactions: yearTransactions,
+        year: now.getFullYear(),
+        month: now.getMonth(),
+      });
+    } catch (e) {
+      notify('Rapport PDF', String(e));
     }
   }
 
@@ -377,18 +401,16 @@ export default function PlusScreen() {
           <Body>
             {PROFIL_LABELS[settings.profil]}
             {settings.profil !== 'aucun'
-              ? ` · ${DON_LABELS[settings.profil]} ${settings.donRate} %`
+              ? ` · ${DON_LABELS[settings.profil]} ${fcfa(split.don)}`
               : ''}
             {settings.phone
               ? ` · ${formatPhone(settings.phoneCode, settings.phone)}`
               : ''}
           </Body>
-          {!isCompact ? (
-            <Text style={styles.ratesInline}>
-              Épargne {settings.epargneRate} % · Semence {settings.semenceRate} % · Revenu{' '}
-              {fcfa(settings.monthlyIncome)}
-            </Text>
-          ) : null}
+          <Text style={styles.ratesInline}>
+            Épargne {fcfa(split.epargne)} · Semence {fcfa(split.semence)} · Revenu{' '}
+            {fcfa(settings.monthlyIncome)}
+          </Text>
           <Button
             label={editAvatar ? 'Fermer' : isCompact ? 'Changer avatar ou photo' : 'Modifier le profil'}
             variant="soft"
@@ -416,7 +438,7 @@ export default function PlusScreen() {
           onChange={(next) => {
             void (async () => {
               setActiveCurrency(next);
-              await updateSettings({ currency: next });
+              await applyCurrencyChange(next);
               await refresh();
             })();
           }}
@@ -538,6 +560,11 @@ export default function PlusScreen() {
             </View>
             <Button label="Exporter une sauvegarde" icon="cloud-download-outline" onPress={backup} />
             <Button
+              label="Exporter le rapport du mois (PDF)"
+              icon="document-outline"
+              onPress={() => void exportMonthlyPdf()}
+            />
+            <Button
               label="Exporter le rapport du mois (CSV)"
               variant="soft"
               icon="document-text-outline"
@@ -651,6 +678,11 @@ export default function PlusScreen() {
                   label="Exporter une sauvegarde"
                   icon="cloud-download-outline"
                   onPress={backup}
+                />
+                <Button
+                  label="Exporter le rapport du mois (PDF)"
+                  icon="document-outline"
+                  onPress={() => void exportMonthlyPdf()}
                 />
                 <Button
                   label="Exporter le rapport du mois (CSV)"

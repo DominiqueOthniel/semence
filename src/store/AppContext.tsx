@@ -138,7 +138,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setStreak(str);
       setCreditYear(cy);
 
-      const split = splitIncome(s.monthlyIncome, s.donRate, s.epargneRate, s.semenceRate);
+      const split = splitIncome(s.monthlyIncome, s.donRate, s.epargneRate, s.semenceRate, s.currency);
       const daysLeft = daysLeftInCycle(viewed);
       const resteCourant = split.courant - courantSpent;
       const cycleIncome = txs.filter((t) => t.type === 'revenu').reduce((sum, t) => sum + t.amount, 0);

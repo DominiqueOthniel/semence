@@ -12,24 +12,174 @@ export type CurrencyCode =
   | 'CDF'
   | 'KES';
 
-export const CURRENCIES: {
+export type CurrencyMeta = {
   code: CurrencyCode;
   label: string;
   suffix: string;
-  sampleIncome: string;
-}[] = [
-  { code: 'XAF', label: 'FCFA (BEAC)', suffix: 'FCFA', sampleIncome: '185000' },
-  { code: 'XOF', label: 'FCFA (UEMOA)', suffix: 'FCFA', sampleIncome: '185000' },
-  { code: 'EUR', label: 'Euro', suffix: '€', sampleIncome: '1800' },
-  { code: 'USD', label: 'Dollar US', suffix: '$', sampleIncome: '2000' },
-  { code: 'GBP', label: 'Livre', suffix: '£', sampleIncome: '1600' },
-  { code: 'CAD', label: 'Dollar CA', suffix: 'CAD', sampleIncome: '2200' },
-  { code: 'CHF', label: 'Franc suisse', suffix: 'CHF', sampleIncome: '1600' },
-  { code: 'NGN', label: 'Naira', suffix: 'NGN', sampleIncome: '350000' },
-  { code: 'GHS', label: 'Cedi', suffix: 'GHS', sampleIncome: '8000' },
-  { code: 'MAD', label: 'Dirham', suffix: 'MAD', sampleIncome: '8000' },
-  { code: 'CDF', label: 'Franc cong.', suffix: 'CDF', sampleIncome: '500000' },
-  { code: 'KES', label: 'Shilling', suffix: 'KES', sampleIncome: '80000' },
+  /** Revenu mensuel d’exemple, dans l’unité de la devise. */
+  sampleIncome: number;
+  /** 0 pour les francs CFA et devises sans centimes utiles, 2 sinon. */
+  decimals: 0 | 2;
+  favorites: { label: string; amount: number }[];
+};
+
+export const CURRENCIES: CurrencyMeta[] = [
+  {
+    code: 'XAF',
+    label: 'FCFA (BEAC)',
+    suffix: 'FCFA',
+    sampleIncome: 185000,
+    decimals: 0,
+    favorites: [
+      { label: 'Taxi', amount: 300 },
+      { label: 'Déjeuner', amount: 1500 },
+      { label: 'Crédit tél.', amount: 1000 },
+      { label: 'Pain', amount: 200 },
+    ],
+  },
+  {
+    code: 'XOF',
+    label: 'FCFA (UEMOA)',
+    suffix: 'FCFA',
+    sampleIncome: 185000,
+    decimals: 0,
+    favorites: [
+      { label: 'Taxi', amount: 300 },
+      { label: 'Déjeuner', amount: 1500 },
+      { label: 'Crédit tél.', amount: 1000 },
+      { label: 'Pain', amount: 200 },
+    ],
+  },
+  {
+    code: 'EUR',
+    label: 'Euro',
+    suffix: '€',
+    sampleIncome: 1800,
+    decimals: 2,
+    favorites: [
+      { label: 'Taxi', amount: 12 },
+      { label: 'Déjeuner', amount: 15 },
+      { label: 'Crédit tél.', amount: 10 },
+      { label: 'Pain', amount: 1.5 },
+    ],
+  },
+  {
+    code: 'USD',
+    label: 'Dollar US',
+    suffix: '$',
+    sampleIncome: 2000,
+    decimals: 2,
+    favorites: [
+      { label: 'Taxi', amount: 12 },
+      { label: 'Déjeuner', amount: 15 },
+      { label: 'Crédit tél.', amount: 10 },
+      { label: 'Pain', amount: 3 },
+    ],
+  },
+  {
+    code: 'GBP',
+    label: 'Livre',
+    suffix: '£',
+    sampleIncome: 1600,
+    decimals: 2,
+    favorites: [
+      { label: 'Taxi', amount: 10 },
+      { label: 'Déjeuner', amount: 12 },
+      { label: 'Crédit tél.', amount: 10 },
+      { label: 'Pain', amount: 1.5 },
+    ],
+  },
+  {
+    code: 'CAD',
+    label: 'Dollar CA',
+    suffix: 'CAD',
+    sampleIncome: 2200,
+    decimals: 2,
+    favorites: [
+      { label: 'Taxi', amount: 12 },
+      { label: 'Déjeuner', amount: 18 },
+      { label: 'Crédit tél.', amount: 10 },
+      { label: 'Pain', amount: 3 },
+    ],
+  },
+  {
+    code: 'CHF',
+    label: 'Franc suisse',
+    suffix: 'CHF',
+    sampleIncome: 1600,
+    decimals: 2,
+    favorites: [
+      { label: 'Taxi', amount: 8 },
+      { label: 'Déjeuner', amount: 18 },
+      { label: 'Crédit tél.', amount: 10 },
+      { label: 'Pain', amount: 2 },
+    ],
+  },
+  {
+    code: 'NGN',
+    label: 'Naira',
+    suffix: 'NGN',
+    sampleIncome: 350000,
+    decimals: 0,
+    favorites: [
+      { label: 'Taxi', amount: 1500 },
+      { label: 'Déjeuner', amount: 2500 },
+      { label: 'Crédit tél.', amount: 500 },
+      { label: 'Pain', amount: 500 },
+    ],
+  },
+  {
+    code: 'GHS',
+    label: 'Cedi',
+    suffix: 'GHS',
+    sampleIncome: 8000,
+    decimals: 2,
+    favorites: [
+      { label: 'Taxi', amount: 20 },
+      { label: 'Déjeuner', amount: 40 },
+      { label: 'Crédit tél.', amount: 10 },
+      { label: 'Pain', amount: 5 },
+    ],
+  },
+  {
+    code: 'MAD',
+    label: 'Dirham',
+    suffix: 'MAD',
+    sampleIncome: 8000,
+    decimals: 2,
+    favorites: [
+      { label: 'Taxi', amount: 20 },
+      { label: 'Déjeuner', amount: 50 },
+      { label: 'Crédit tél.', amount: 20 },
+      { label: 'Pain', amount: 5 },
+    ],
+  },
+  {
+    code: 'CDF',
+    label: 'Franc cong.',
+    suffix: 'CDF',
+    sampleIncome: 500000,
+    decimals: 0,
+    favorites: [
+      { label: 'Taxi', amount: 3000 },
+      { label: 'Déjeuner', amount: 5000 },
+      { label: 'Crédit tél.', amount: 2000 },
+      { label: 'Pain', amount: 1500 },
+    ],
+  },
+  {
+    code: 'KES',
+    label: 'Shilling',
+    suffix: 'KES',
+    sampleIncome: 80000,
+    decimals: 0,
+    favorites: [
+      { label: 'Taxi', amount: 200 },
+      { label: 'Déjeuner', amount: 400 },
+      { label: 'Crédit tél.', amount: 50 },
+      { label: 'Pain', amount: 50 },
+    ],
+  },
 ];
 
 export const PHONE_CODES: {
@@ -87,4 +237,8 @@ export function formatPhone(code?: string | null, local?: string | null): string
   const number = String(local || '').replace(/[^\d]/g, '');
   if (!number) return `+${prefix}`;
   return `+${prefix} ${number}`;
+}
+
+export function favoritesForCurrency(code?: string | null) {
+  return currencyMeta(code).favorites.map((f) => ({ ...f }));
 }

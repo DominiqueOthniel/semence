@@ -23,6 +23,7 @@ export function CycleSwitch({
 }) {
   const { isCompact } = useLayout();
   const [viewYear, setViewYear] = useState(cycle.year);
+  const [open, setOpen] = useState(!isCompact);
 
   useEffect(() => {
     setViewYear(cycle.year);
@@ -54,11 +55,17 @@ export function CycleSwitch({
           onPress={() => onShift(-1)}
         />
         <View style={styles.headCenter}>
-          <Text style={styles.kicker}>Cycle budgétaire</Text>
-          <Text style={styles.title} numberOfLines={1}>
-            {cycle.label}
-          </Text>
-          <Text style={styles.range}>{cycle.rangeLabel}</Text>
+          <Pressable
+            onPress={() => isCompact && setOpen((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={open ? 'Masquer le calendrier' : 'Choisir un autre mois'}
+          >
+            <Text style={styles.kicker}>Cycle budgétaire</Text>
+            <Text style={styles.title} numberOfLines={1}>
+              {cycle.label}
+            </Text>
+            <Text style={styles.range}>{cycle.rangeLabel}</Text>
+          </Pressable>
           <View style={[styles.badge, cycle.status === 'en_cours' ? styles.badgeOn : styles.badgeOff]}>
             <View style={[styles.badgeDot, cycle.status === 'en_cours' ? styles.dotOn : styles.dotOff]} />
             <Text style={[styles.badgeText, cycle.status === 'en_cours' && styles.badgeTextOn]}>
@@ -76,7 +83,9 @@ export function CycleSwitch({
         />
       </View>
 
-      <View style={styles.yearRow}>
+      {open ? (
+        <>
+          <View style={styles.yearRow}>
         <NavBtn
           icon="caret-back-outline"
           label="Année précédente"
@@ -136,7 +145,11 @@ export function CycleSwitch({
             </Pressable>
           );
         })}
-      </View>
+          </View>
+        </>
+      ) : isCompact ? (
+        <Text style={styles.hint}>Touche le mois pour comparer un autre cycle.</Text>
+      ) : null}
 
       {cycle.status !== 'en_cours' ? (
         <Pressable
@@ -392,5 +405,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.corpsBold,
     fontSize: 14,
     color: colors.or,
+  },
+  hint: {
+    marginTop: 10,
+    textAlign: 'center',
+    fontFamily: fonts.corps,
+    fontSize: 12,
+    color: colors.ink3,
   },
 });

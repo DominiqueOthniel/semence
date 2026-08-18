@@ -2,7 +2,17 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { Settings } from '../types';
 import { DON_LABELS } from '../types';
-import { currencySuffix, fcfa, parseFcfaInput, splitIncome } from '../lib/money';
+import {
+  currencySuffix,
+  fcfa,
+  moneyKeyboard,
+  moneyToInput,
+  parseFcfaInput,
+  ratesFromAmounts,
+  sanitizeMoneyInput,
+  splitFromAmounts,
+  splitIncome,
+} from '../lib/money';
 import { colors, fonts } from '../theme/colors';
 import { Body, Button, Eyebrow, Field, IconBadge } from './primitives';
 
@@ -20,34 +30,40 @@ export function BudgetEditor({
     semenceRate: number;
   }) => Promise<void>;
 }) {
-  const [income, setIncome] = useState(String(settings.monthlyIncome || ''));
-  const [donRate, setDonRate] = useState(String(settings.donRate || 0));
-  const [epargneRate, setEpargneRate] = useState(String(settings.epargneRate || 0));
-  const [semenceRate, setSemenceRate] = useState(String(settings.semenceRate || 0));
+  const code = settings.currency;
+  const seed = splitIncome(
+    settings.monthlyIncome,
+    settings.donRate,
+    settings.epargneRate,
+    settings.semenceRate,
+    code,
+  );
+  const [income, setIncome] = useState(moneyToInput(settings.monthlyIncome, code));
+  const [donAmt, setDonAmt] = useState(moneyToInput(seed.don, code));
+  const [epargneAmt, setEpargneAmt] = useState(moneyToInput(seed.epargne, code));
+  const [semenceAmt, setSemenceAmt] = useState(moneyToInput(seed.semence, code));
 
   useEffect(() => {
-    setIncome(String(settings.monthlyIncome || ''));
-    setDonRate(String(settings.donRate || 0));
-    setEpargneRate(String(settings.epargneRate || 0));
-    setSemenceRate(String(settings.semenceRate || 0));
-  }, [settings.monthlyIncome, settings.donRate, settings.epargneRate, settings.semenceRate]);
+    const next = splitIncome(
+      settings.monthlyIncome,
+      settings.donRate,
+      settings.epargneRate,
+      settings.semenceRate,
+      settings.currency,
+    );
+    setIncome(moneyToInput(settings.monthlyIncome, settings.currency));
+    setDonAmt(moneyToInput(next.don, settings.currency));
+    setEpargneAmt(moneyToInput(next.epargne, settings.currency));
+    setSemenceAmt(moneyToInput(next.semence, settings.currency));
+  }, [settings.monthlyIncome, settings.donRate, settings.epargneRate, settings.semenceRate, settings.currency]);
 
-  const incomeValue = parseFcfaInput(income);
-  const don = Number(donRate) || 0;
-  const epargne = Number(epargneRate) || 0;
-  const semence = Number(semenceRate) || 0;
-  const split = splitIncome(incomeValue, don, epargne, semence);
-  const totalRate = (settings.profil === 'aucun' ? 0 : don) + epargne + semence;
-  const overflow = totalRate > 100;
-
-  function setAmount(kind: 'don' | 'epargne' | 'semence', raw: string) {
-    const amount = parseFcfaInput(raw);
-    const rate = incomeValue > 0 ? Math.round((amount * 1000) / incomeValue) / 10 : 0;
-    const next = String(Math.max(0, rate));
-    if (kind === 'don') setDonRate(next);
-    if (kind === 'epargne') setEpargneRate(next);
-    if (kind === 'semence') setSemenceRate(next);
-  }
+  const incomeValue = parseFcfaInput(income, code);
+  const don = settings.profil === 'aucun' ? 0 : parseFcfaInput(donAmt, code);
+  const epargne = parseFcfaInput(epargneAmt, code);
+  const semence = parseFcfaInput(semenceAmt, code);
+  const split = splitFromAmounts(incomeValue, don, epargne, semence, code);
+  const overflow = split.courant < 0;
+  const keys = moneyKeyboard(code);
 
   return (
     <View>
@@ -56,86 +72,51 @@ export function BudgetEditor({
         <Eyebrow>Budget du mois</Eyebrow>
       </View>
       <Body style={{ marginBottom: 12 }}>
-        Ajuste le revenu et chaque enveloppe. Le courant prend ce qui reste.
+        Indique les montants dans ta devise. Le courant prend ce qui reste.
       </Body>
       <Field
-        label={`Revenu du mois (${currencySuffix()})`}
+        label={`Revenu du mois (${currencySuffix(code)})`}
         value={income}
-        onChangeText={setIncome}
-        keyboardType="number-pad"
+        onChangeText={(v) => setIncome(sanitizeMoneyInput(v, code))}
+        keyboardType={keys}
       />
       {settings.profil !== 'aucun' ? (
-        <View style={styles.pair}>
-          <View style={styles.half}>
-            <Field
-              label={`${DON_LABELS[settings.profil]} (%)`}
-              value={donRate}
-              onChangeText={setDonRate}
-              keyboardType="decimal-pad"
-            />
-          </View>
-          <View style={styles.half}>
-            <Field
-              label={`Montant (${currencySuffix()})`}
-              value={String(split.don || '')}
-              onChangeText={(v) => setAmount('don', v)}
-              keyboardType="number-pad"
-            />
-          </View>
-        </View>
+        <Field
+          label={`${DON_LABELS[settings.profil]} (${currencySuffix(code)})`}
+          value={donAmt}
+          onChangeText={(v) => setDonAmt(sanitizeMoneyInput(v, code))}
+          keyboardType={keys}
+        />
       ) : null}
-      <View style={styles.pair}>
-        <View style={styles.half}>
-          <Field
-            label="Épargne (%)"
-            value={epargneRate}
-            onChangeText={setEpargneRate}
-            keyboardType="number-pad"
-          />
-        </View>
-        <View style={styles.half}>
-          <Field
-            label={`Montant (${currencySuffix()})`}
-            value={String(split.epargne || '')}
-            onChangeText={(v) => setAmount('epargne', v)}
-            keyboardType="number-pad"
-          />
-        </View>
-      </View>
-      <View style={styles.pair}>
-        <View style={styles.half}>
-          <Field
-            label="Semence (%)"
-            value={semenceRate}
-            onChangeText={setSemenceRate}
-            keyboardType="number-pad"
-          />
-        </View>
-        <View style={styles.half}>
-          <Field
-            label={`Montant (${currencySuffix()})`}
-            value={String(split.semence || '')}
-            onChangeText={(v) => setAmount('semence', v)}
-            keyboardType="number-pad"
-          />
-        </View>
-      </View>
+      <Field
+        label={`Épargne (${currencySuffix(code)})`}
+        value={epargneAmt}
+        onChangeText={(v) => setEpargneAmt(sanitizeMoneyInput(v, code))}
+        keyboardType={keys}
+      />
+      <Field
+        label={`Semence (${currencySuffix(code)})`}
+        value={semenceAmt}
+        onChangeText={(v) => setSemenceAmt(sanitizeMoneyInput(v, code))}
+        keyboardType={keys}
+      />
       <Text style={[styles.reste, overflow && styles.resteWarn]}>
         {overflow
-          ? `Les enveloppes dépassent 100 % (${totalRate} %).`
-          : `Reste pour vivre · ${fcfa(split.courant)}`}
+          ? `Les enveloppes dépassent le revenu de ${fcfa(Math.abs(split.courant), code)}.`
+          : `Reste pour vivre · ${fcfa(split.courant, code)}`}
       </Text>
       <Button
         label={busy ? 'Enregistrement…' : 'Enregistrer le budget'}
         icon="checkmark-circle-outline"
-        onPress={() =>
+        onPress={() => {
+          const rates = ratesFromAmounts(incomeValue, don, epargne, semence);
           void onSave({
             monthlyIncome: incomeValue,
-            donRate: settings.profil === 'aucun' ? 0 : don,
-            epargneRate: epargne,
-            semenceRate: semence,
-          })
-        }
+            donRate: settings.profil === 'aucun' ? 0 : rates.donRate,
+            epargneRate: rates.epargneRate,
+            semenceRate: rates.semenceRate,
+          });
+        }}
         disabled={busy || overflow}
       />
     </View>
@@ -148,14 +129,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     marginBottom: 10,
-  },
-  pair: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  half: {
-    flex: 1,
-    minWidth: 0,
   },
   reste: {
     fontFamily: fonts.chiffreMed,

@@ -3,7 +3,7 @@ import { useLayoutEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { addDebt } from '../src/db/database';
 import { useApp } from '../src/store/AppContext';
-import { currencySuffix, parseFcfaInput } from '../src/lib/money';
+import { currencySuffix, moneyKeyboard, parseFcfaInput, sanitizeMoneyInput } from '../src/lib/money';
 import { Button, Field, Screen, Segment } from '../src/ui/primitives';
 import { colors } from '../src/theme/colors';
 
@@ -45,7 +45,12 @@ export default function DetteScreen() {
         ]}
       />
       <Field label="Personne" value={person} onChangeText={setPerson} placeholder="Nom" />
-      <Field label={`Montant (${currencySuffix()})`} value={amount} onChangeText={setAmount} keyboardType="number-pad" />
+      <Field
+        label={`Montant (${currencySuffix()})`}
+        value={amount}
+        onChangeText={(v) => setAmount(sanitizeMoneyInput(v))}
+        keyboardType={moneyKeyboard()}
+      />
       <Field label="Note" value={note} onChangeText={setNote} />
       <Button label="Enregistrer" icon="checkmark-circle-outline" onPress={save} />
     </Screen>

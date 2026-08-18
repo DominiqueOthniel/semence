@@ -7,8 +7,20 @@ import { completeOnboarding } from '../src/db/database';
 import { generateRecoveryCode } from '../src/lib/recovery';
 import { useApp } from '../src/store/AppContext';
 import { DEFAULT_RATES, DON_LABELS, type Profil } from '../src/types';
-import { CURRENCIES, DEFAULT_CURRENCY, DEFAULT_PHONE_CODE, phoneMeta, type CurrencyCode } from '../src/lib/locale';
-import { currencySuffix, fcfa, parseFcfaInput, setActiveCurrency, splitIncome } from '../src/lib/money';
+import { DEFAULT_CURRENCY, DEFAULT_PHONE_CODE, currencyMeta, phoneMeta, type CurrencyCode } from '../src/lib/locale';
+import {
+  convertAmount,
+  currencySuffix,
+  fcfa,
+  moneyKeyboard,
+  moneyToInput,
+  parseFcfaInput,
+  ratesFromAmounts,
+  sanitizeMoneyInput,
+  setActiveCurrency,
+  splitFromAmounts,
+  splitIncome,
+} from '../src/lib/money';
 import { CurrencyPicker, PhoneField } from '../src/ui/LocaleFields';
 import {
   Avatar,
@@ -27,6 +39,8 @@ import { BrandLockup } from '../src/ui/BrandLogo';
 import { colors, elev, fonts, radius } from '../src/theme/colors';
 import { useLayout } from '../src/hooks/useLayout';
 import { BotanicalField } from '../src/ui/BotanicalMotif';
+import { MascotTip } from '../src/ui/Mascot';
+import { MASCOT_COPY } from '../src/lib/mascot';
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -40,30 +54,52 @@ export default function OnboardingScreen() {
   const [currencyTouched, setCurrencyTouched] = useState(false);
   const [profil, setProfil] = useState<Profil>('chretien');
   const [avatar, setAvatar] = useState<AvatarChoice>({ preset: 'initials', photo: null });
-  const [income, setIncome] = useState('185000');
-  const [donRate, setDonRate] = useState('10');
-  const [epargneRate, setEpargneRate] = useState('10');
-  const [semenceRate, setSemenceRate] = useState('5');
+  const start = currencyMeta(DEFAULT_CURRENCY);
+  const seed = splitIncome(start.sampleIncome, 10, 10, 5, DEFAULT_CURRENCY);
+  const [income, setIncome] = useState(moneyToInput(start.sampleIncome, DEFAULT_CURRENCY));
+  const [donAmt, setDonAmt] = useState(moneyToInput(seed.don, DEFAULT_CURRENCY));
+  const [epargneAmt, setEpargneAmt] = useState(moneyToInput(seed.epargne, DEFAULT_CURRENCY));
+  const [semenceAmt, setSemenceAmt] = useState(moneyToInput(seed.semence, DEFAULT_CURRENCY));
   const [monthStart, setMonthStart] = useState('25');
   const [pin, setPin] = useState('');
   const [pin2, setPin2] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');
   const [busy, setBusy] = useState(false);
 
-  function applyProfil(p: Profil) {
-    setProfil(p);
+  function applyAmounts(nextIncome: string, p: Profil, code: CurrencyCode) {
     const r = DEFAULT_RATES[p];
-    setDonRate(String(r.don));
-    setEpargneRate(String(r.epargne));
-    setSemenceRate(String(r.semence));
+    const next = splitIncome(parseFcfaInput(nextIncome, code), r.don, r.epargne, r.semence, code);
+    setDonAmt(moneyToInput(next.don, code));
+    setEpargneAmt(moneyToInput(next.epargne, code));
+    setSemenceAmt(moneyToInput(next.semence, code));
   }
 
-  const split = splitIncome(
-    parseFcfaInput(income),
-    Number(donRate) || 0,
-    Number(epargneRate) || 0,
-    Number(semenceRate) || 0,
-  );
+  function applyProfil(p: Profil) {
+    setProfil(p);
+    applyAmounts(income, p, currency);
+  }
+
+  function adoptCurrency(next: CurrencyCode) {
+    if (next === currency) return;
+    const nextIncome = convertAmount(parseFcfaInput(income, currency), currency, next);
+    const nextDon = convertAmount(parseFcfaInput(donAmt, currency), currency, next);
+    const nextEpargne = convertAmount(parseFcfaInput(epargneAmt, currency), currency, next);
+    const nextSemence = convertAmount(parseFcfaInput(semenceAmt, currency), currency, next);
+    setCurrency(next);
+    setActiveCurrency(next);
+    setIncome(moneyToInput(nextIncome, next));
+    setDonAmt(moneyToInput(nextDon, next));
+    setEpargneAmt(moneyToInput(nextEpargne, next));
+    setSemenceAmt(moneyToInput(nextSemence, next));
+  }
+
+  const incomeValue = parseFcfaInput(income, currency);
+  const don = profil === 'aucun' ? 0 : parseFcfaInput(donAmt, currency);
+  const epargne = parseFcfaInput(epargneAmt, currency);
+  const semence = parseFcfaInput(semenceAmt, currency);
+  const split = splitFromAmounts(incomeValue, don, epargne, semence, currency);
+  const overflow = split.courant < 0;
+  const rates = ratesFromAmounts(incomeValue, don, epargne, semence);
 
   function goToRecovery() {
     if (pin.length < 4) {
@@ -91,10 +127,10 @@ export default function OnboardingScreen() {
         phoneCode,
         currency,
         profil,
-        monthlyIncome: parseFcfaInput(income),
-        donRate: Number(donRate) || 0,
-        epargneRate: Number(epargneRate) || 0,
-        semenceRate: Number(semenceRate) || 0,
+        monthlyIncome: incomeValue,
+        donRate: profil === 'aucun' ? 0 : rates.donRate,
+        epargneRate: rates.epargneRate,
+        semenceRate: rates.semenceRate,
         monthStartDay: Math.min(28, Math.max(1, Number(monthStart) || 1)),
         pin,
         recoveryCode,
@@ -119,6 +155,12 @@ export default function OnboardingScreen() {
           <Title>
             Semer <Text style={styles.em}>avant</Text> de dépenser.
           </Title>
+          <MascotTip
+            mood="welcome"
+            stage={0}
+            title={MASCOT_COPY.welcome.title}
+            text={MASCOT_COPY.welcome.text}
+          />
           <Body style={{ marginBottom: 24 }}>
             Quatre enveloppes, un ordre fixe. Configure ton profil en quelques minutes.
           </Body>
@@ -127,11 +169,7 @@ export default function OnboardingScreen() {
             value={currency}
             onChange={(next) => {
               setCurrencyTouched(true);
-              setCurrency(next);
-              setActiveCurrency(next);
-              const sample = CURRENCIES.find((c) => c.code === next)?.sampleIncome;
-              const known = CURRENCIES.some((c) => c.sampleIncome === income);
-              if (sample && known) setIncome(sample);
+              adoptCurrency(next);
             }}
           />
           <PhoneField
@@ -140,12 +178,7 @@ export default function OnboardingScreen() {
             onChangeCode={(next) => {
               setPhoneCode(next);
               if (!currencyTouched) {
-                const suggested = phoneMeta(next).currency;
-                setCurrency(suggested);
-                setActiveCurrency(suggested);
-                const sample = CURRENCIES.find((c) => c.code === suggested)?.sampleIncome;
-                const known = CURRENCIES.some((c) => c.sampleIncome === income);
-                if (sample && known) setIncome(sample);
+                adoptCurrency(phoneMeta(next).currency);
               }
             }}
             onChangeNumber={setPhone}
@@ -175,34 +208,40 @@ export default function OnboardingScreen() {
       {step === 1 && (
         <View>
           <Title>Ta répartition.</Title>
+          <MascotTip
+            mood="income"
+            stage={0}
+            title={MASCOT_COPY.income.title}
+            text={MASCOT_COPY.income.text}
+          />
           <Body style={{ marginBottom: 24 }}>
-            Ajuste les pourcentages. Tu pourras les changer plus tard, mois après mois.
+            Indique les montants. Pas de calcul de pourcentage, le courant prend ce qui reste.
           </Body>
           <Field
             label={`Revenu du mois (${currencySuffix(currency)})`}
             value={income}
-            onChangeText={setIncome}
-            keyboardType="number-pad"
+            onChangeText={(v) => setIncome(sanitizeMoneyInput(v, currency))}
+            keyboardType={moneyKeyboard(currency)}
           />
           {profil !== 'aucun' && (
             <Field
-              label={`${DON_LABELS[profil]} (%)`}
-              value={donRate}
-              onChangeText={setDonRate}
-              keyboardType="decimal-pad"
+              label={`${DON_LABELS[profil]} (${currencySuffix(currency)})`}
+              value={donAmt}
+              onChangeText={(v) => setDonAmt(sanitizeMoneyInput(v, currency))}
+              keyboardType={moneyKeyboard(currency)}
             />
           )}
           <Field
-            label="Épargne (%)"
-            value={epargneRate}
-            onChangeText={setEpargneRate}
-            keyboardType="number-pad"
+            label={`Épargne (${currencySuffix(currency)})`}
+            value={epargneAmt}
+            onChangeText={(v) => setEpargneAmt(sanitizeMoneyInput(v, currency))}
+            keyboardType={moneyKeyboard(currency)}
           />
           <Field
-            label="Semence (%)"
-            value={semenceRate}
-            onChangeText={setSemenceRate}
-            keyboardType="number-pad"
+            label={`Semence (${currencySuffix(currency)})`}
+            value={semenceAmt}
+            onChangeText={(v) => setSemenceAmt(sanitizeMoneyInput(v, currency))}
+            keyboardType={moneyKeyboard(currency)}
           />
           <Field
             label="Premier jour du mois budgétaire"
@@ -215,19 +254,21 @@ export default function OnboardingScreen() {
           <SoftCard>
             <View style={styles.cardHead}>
               <IconBadge name="calculator-outline" bg={colors.ambreWash} color={colors.ambre} />
-              <Eyebrow>Aperçu</Eyebrow>
+              <Eyebrow>Reste pour vivre</Eyebrow>
             </View>
-            {profil !== 'aucun' && (
-              <Text style={styles.previewLine}>
-                {DON_LABELS[profil]} · {fcfa(split.don)}
-              </Text>
-            )}
-            <Text style={styles.previewLine}>Épargne · {fcfa(split.epargne)}</Text>
-            <Text style={styles.previewLine}>Semence · {fcfa(split.semence)}</Text>
-            <Text style={styles.previewStrong}>Reste pour vivre · {fcfa(split.courant)}</Text>
+            <Text style={[styles.previewStrong, overflow && styles.previewWarn]}>
+              {overflow
+                ? `Les enveloppes dépassent le revenu de ${fcfa(Math.abs(split.courant), currency)}.`
+                : fcfa(split.courant, currency)}
+            </Text>
           </SoftCard>
 
-          <Button label="Continuer" icon="arrow-forward" onPress={() => setStep(2)} />
+          <Button
+            label="Continuer"
+            icon="arrow-forward"
+            onPress={() => setStep(2)}
+            disabled={overflow}
+          />
           <Button label="Retour" variant="ghost" icon="arrow-back" onPress={() => setStep(0)} />
         </View>
       )}
@@ -365,18 +406,15 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 10,
   },
-  previewLine: {
-    fontFamily: fonts.chiffre,
-    fontSize: 14,
-    color: colors.ink2,
-    marginBottom: 8,
-  },
   previewStrong: {
     fontFamily: fonts.chiffreMed,
     fontSize: 15,
     color: colors.ink,
     marginTop: 4,
     marginBottom: 8,
+  },
+  previewWarn: {
+    color: colors.rouge,
   },
   recoveryCode: {
     marginTop: 10,

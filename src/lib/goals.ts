@@ -1,5 +1,5 @@
 import type { SavingsGoal } from '../types';
-import { todayISO } from './money';
+import { roundMoney, todayISO } from './money';
 
 export function addMonthsISO(fromISO: string, months: number): string {
   const [y, m, d] = fromISO.split('-').map(Number);
@@ -16,9 +16,9 @@ export function planGoal(input: {
   months?: number | null;
   monthlyBudget?: number | null;
 }): { target: number; months: number | null; monthlyBudget: number | null; dueDate: string | null } {
-  const target = Math.max(0, Math.round(input.target));
+  const target = Math.max(0, roundMoney(input.target));
   let months = input.months && input.months > 0 ? Math.round(input.months) : null;
-  let monthly = input.monthlyBudget && input.monthlyBudget > 0 ? Math.round(input.monthlyBudget) : null;
+  let monthly = input.monthlyBudget && input.monthlyBudget > 0 ? roundMoney(input.monthlyBudget) : null;
 
   if (target > 0 && months && !monthly) {
     monthly = Math.ceil(target / months);
