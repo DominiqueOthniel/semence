@@ -14,7 +14,7 @@ import type {
 } from '../types';
 import { DEFAULT_RATES } from '../types';
 import { nowISO, todayISO, convertAmount } from '../lib/money';
-import { cycleAtOffset } from '../lib/cycle';
+import { cycleAtOffset, isoFromDate } from '../lib/cycle';
 import { DEFAULT_CURRENCY, DEFAULT_PHONE_CODE, favoritesForCurrency, normalizeCurrency, normalizePhoneCode } from '../lib/locale';
 import { generateRecoveryCode, normalizeRecovery } from '../lib/recovery';
 
@@ -721,15 +721,11 @@ export async function eveningDoneToday(): Promise<boolean> {
 
 export async function eveningStreak(): Promise<number> {
   const store = await load();
-  const rows = store.eveningLogs
-    .filter((e) => e.done)
-    .slice()
-    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const doneDates = new Set(store.eveningLogs.filter((e) => e.done).map((e) => e.date));
   let streak = 0;
   const cursor = new Date();
-  for (const r of rows) {
-    const expected = cursor.toISOString().slice(0, 10);
-    if (r.date !== expected) break;
+  cursor.setHours(12, 0, 0, 0);
+  while (doneDates.has(isoFromDate(cursor))) {
     streak += 1;
     cursor.setDate(cursor.getDate() - 1);
   }

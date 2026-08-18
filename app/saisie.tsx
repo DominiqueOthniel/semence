@@ -88,7 +88,7 @@ export default function SaisieScreen() {
       ) : null}
       {!isIncome && favorites.length > 0 ? (
         <>
-          <Text style={styles.lead}>Un tap enregistre tout de suite, sur le courant.</Text>
+          <Text style={styles.lead}>Un tap pour les habituels. Sinon, montant et nom.</Text>
           <View style={styles.favs}>
             {favorites.map((f, i) => (
               <Chip
@@ -102,7 +102,7 @@ export default function SaisieScreen() {
         </>
       ) : (
         <Body style={{ marginBottom: 12 }}>
-          {isIncome ? 'Note un revenu, puis enregistre.' : 'Montant, puis enregistre.'}
+          {isIncome ? 'Note un revenu, puis enregistre.' : 'Montant et nom, puis enregistre.'}
         </Body>
       )}
 
@@ -113,10 +113,10 @@ export default function SaisieScreen() {
         keyboardType={moneyKeyboard()}
       />
       <Field
-        label="Libellé (optionnel)"
+        label={isIncome ? 'Libellé (optionnel)' : 'Nom de la dépense'}
         value={note}
         onChangeText={setNote}
-        placeholder={isIncome ? 'Salaire' : 'Déjeuner'}
+        placeholder={isIncome ? 'Salaire' : 'Loisir, marché, cadeau…'}
       />
       <Button
         label={busy ? 'Enregistrement…' : 'Enregistrer'}

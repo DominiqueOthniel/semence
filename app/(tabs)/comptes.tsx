@@ -22,6 +22,7 @@ import {
   Title,
 } from '../../src/ui/primitives';
 import { colors, fonts, radius } from '../../src/theme/colors';
+import { ClockStamp } from '../../src/ui/ClockStamp';
 import type { ComponentProps } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -139,6 +140,9 @@ export default function ComptesScreen() {
           <View style={{ flex: 1, minWidth: 0 }}>
             <Eyebrow>Où est ton argent</Eyebrow>
             <Title>Comptes</Title>
+            <View style={{ marginTop: 8 }}>
+              <ClockStamp variant="muted" compact />
+            </View>
           </View>
           <IconBadge name="wallet" size={48} />
         </View>
@@ -168,6 +172,9 @@ export default function ComptesScreen() {
         <View style={{ flex: 1, minWidth: 0 }}>
           <Eyebrow>Où est ton argent</Eyebrow>
           <Title>Comptes</Title>
+          <View style={{ marginTop: 8 }}>
+            <ClockStamp variant="muted" compact />
+          </View>
           <Body style={styles.deskHint}>
             Solde réel par support. Les enveloppes (Accueil) gèrent le budget ; ici tu vois où
             l’argent se trouve.

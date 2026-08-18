@@ -42,6 +42,7 @@ export function QuickMove({
   onIncome?: () => void;
 }) {
   const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState('');
   const repeats = useMemo(() => recentRepeats(transactions), [transactions]);
@@ -53,6 +54,7 @@ export function QuickMove({
     try {
       await addExpense(accountId, value, 'courant', label);
       setAmount('');
+      setNote('');
       setFlash(`${label} · ${fcfa(value)}`);
       await onSaved();
       setTimeout(() => setFlash(''), 2200);
@@ -64,7 +66,8 @@ export function QuickMove({
   function saveTyped() {
     const value = parseFcfaInput(amount);
     if (!value) return;
-    void noteExpense(value, 'Dépense');
+    const label = note.trim() || 'Dépense';
+    void noteExpense(value, label);
   }
 
   if (!accountId) return null;
@@ -72,7 +75,7 @@ export function QuickMove({
   return (
     <SoftCard>
       <Eyebrow>Un tap, c’est noté</Eyebrow>
-      <Text style={styles.lead}>Courant, premier compte. Sans formulaire.</Text>
+      <Text style={styles.lead}>Les habituels en un tap. Le reste, tu écris le nom.</Text>
       <View style={styles.row}>
         {favorites.map((f, i) => (
           <Chip
@@ -93,30 +96,41 @@ export function QuickMove({
             />
           ))}
       </View>
-      <View style={styles.quickRow}>
+      <View style={styles.quickCol}>
         <TextInput
           value={amount}
           onChangeText={(v) => setAmount(sanitizeMoneyInput(v))}
           keyboardType={moneyKeyboard()}
           placeholder={`Montant (${currencySuffix()})`}
           placeholderTextColor={colors.ink3}
-          accessibilityLabel="Montant rapide"
+          accessibilityLabel="Montant"
           style={styles.input}
-          onSubmitEditing={saveTyped}
         />
-        <Pressable
-          onPress={saveTyped}
-          disabled={busy || !parseFcfaInput(amount)}
-          accessibilityRole="button"
-          accessibilityLabel="Noter la dépense"
-          style={({ pressed }) => [
-            styles.go,
-            pressed && { opacity: 0.9 },
-            (busy || !parseFcfaInput(amount)) && { opacity: 0.4 },
-          ]}
-        >
-          <Ionicons name="arrow-up" size={20} color={colors.white} />
-        </Pressable>
+        <View style={styles.quickRow}>
+          <TextInput
+            value={note}
+            onChangeText={setNote}
+            placeholder="Nom : loisir, marché, cadeau…"
+            placeholderTextColor={colors.ink3}
+            accessibilityLabel="Nom de la dépense"
+            style={[styles.input, styles.noteInput]}
+            onSubmitEditing={saveTyped}
+            returnKeyType="done"
+          />
+          <Pressable
+            onPress={saveTyped}
+            disabled={busy || !parseFcfaInput(amount)}
+            accessibilityRole="button"
+            accessibilityLabel="Noter la dépense"
+            style={({ pressed }) => [
+              styles.go,
+              pressed && { opacity: 0.9 },
+              (busy || !parseFcfaInput(amount)) && { opacity: 0.4 },
+            ]}
+          >
+            <Ionicons name="arrow-up" size={20} color={colors.white} />
+          </Pressable>
+        </View>
       </View>
       {flash ? <Text style={styles.flash}>Noté · {flash}</Text> : null}
       {onMore || onIncome ? (
@@ -151,6 +165,9 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12,
   },
+  quickCol: {
+    gap: 8,
+  },
   quickRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -167,6 +184,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fonts.chiffreMed,
     color: colors.ink,
+  },
+  noteInput: {
+    fontFamily: fonts.corps,
+    fontSize: 15,
   },
   go: {
     width: TOUCH,

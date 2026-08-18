@@ -8,6 +8,7 @@ import { BrandLockup } from '../../src/ui/BrandLogo';
 import { useApp } from '../../src/store/AppContext';
 import { Avatar } from '../../src/ui/primitives';
 import { BotanicalField } from '../../src/ui/BotanicalMotif';
+import { ClockStamp } from '../../src/ui/ClockStamp';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -128,6 +129,9 @@ function DesktopShell() {
           );
         })}
         <View style={{ flex: 1 }} />
+        <View style={styles.sideClock}>
+          <ClockStamp variant="gold" compact stacked />
+        </View>
         <View style={styles.sideSecure}>
           <Ionicons name="shield-checkmark-outline" size={14} color={colors.ambre} />
           <Text style={styles.sideSecureText}>Sécurisé & confidentiel</Text>
@@ -287,6 +291,11 @@ const styles = StyleSheet.create({
   sideLabelOn: {
     fontFamily: fonts.corpsBold,
     color: colors.white,
+  },
+  sideClock: {
+    paddingHorizontal: 12,
+    marginBottom: 16,
+    zIndex: 1,
   },
   sideSecure: {
     flexDirection: 'row',

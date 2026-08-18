@@ -21,6 +21,9 @@ import { BrandLockup } from '../src/ui/BrandLogo';
 import { colors, elev, fonts, radius, space } from '../src/theme/colors';
 import { TOUCH, useLayout } from '../src/hooks/useLayout';
 import { BotanicalField } from '../src/ui/BotanicalMotif';
+import { ClockStamp } from '../src/ui/ClockStamp';
+import { formatClock } from '../src/lib/clock';
+import { useNow } from '../src/hooks/useNow';
 
 function capitalizeName(raw?: string) {
   if (!raw) return '';
@@ -35,11 +38,6 @@ function pinSlotsFromHash(pinHash: string | null | undefined) {
   const n = Number(part);
   if (!Number.isFinite(n) || n < 4) return 4;
   return Math.min(8, n);
-}
-
-function useGreeting() {
-  const hour = new Date().getHours();
-  return hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
 }
 
 function PinSlots({
@@ -118,7 +116,7 @@ export default function LockScreen() {
 
   const firstName = capitalizeName(settings?.name);
   const slots = pinSlotsFromHash(settings?.pinHash);
-  const salut = useGreeting();
+  const salut = formatClock(useNow()).greeting;
   const canRecover = !!settings?.recoveryHash;
 
   async function submit(value = pin) {
@@ -390,6 +388,9 @@ export default function LockScreen() {
                   {salut}
                   {firstName ? `, ${firstName}` : ''}.
                 </Text>
+                <View style={styles.clockLock}>
+                  <ClockStamp />
+                </View>
                 <Text style={styles.hintMobile}>{hint}</Text>
                 {authBlock}
               </View>
@@ -444,6 +445,9 @@ export default function LockScreen() {
                   {salut}
                   {firstName ? `, ${firstName}` : ''}.
                 </Text>
+                <View style={styles.clockLockDesk}>
+                  <ClockStamp />
+                </View>
               </View>
             </View>
             <Text style={styles.hintDesktop}>{hint}</Text>
@@ -562,12 +566,19 @@ const styles = StyleSheet.create({
     color: colors.ink,
     textAlign: 'center',
   },
+  clockLock: {
+    marginTop: 10,
+    alignItems: 'center',
+  },
   titleDesktop: {
     marginTop: 2,
     fontFamily: fonts.display,
     fontSize: 28,
     lineHeight: 34,
     color: colors.ink,
+  },
+  clockLockDesk: {
+    marginTop: 6,
   },
   hintMobile: {
     marginTop: 10,

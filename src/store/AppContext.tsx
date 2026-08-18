@@ -1,13 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { AppState as RNAppState } from 'react-native';
 import type { Account, Credit, Debt, FavoriteAmount, SavingsGoal, Settings, Transaction } from '../types';
 import * as db from '../db/database';
 import { setActiveCurrency, splitIncome } from '../lib/money';
-import {
-  clampCycleOffset,
-  cycleAtOffset,
-  daysLeftInCycle,
-  type Cycle,
-} from '../lib/cycle';
+import { clampCycleOffset, cycleAtOffset, daysLeftInCycle, type Cycle } from '../lib/cycle';
+import { formatClock } from '../lib/clock';
 
 interface AppState {
   ready: boolean;
@@ -180,6 +177,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       clearTimeout(timer);
     };
+  }, [refresh]);
+
+  useEffect(() => {
+    let day = formatClock().dayKey;
+    const id = setInterval(() => {
+      const next = formatClock().dayKey;
+      if (next !== day) {
+        day = next;
+        void refresh();
+      }
+    }, 15000);
+    return () => clearInterval(id);
+  }, [refresh]);
+
+  useEffect(() => {
+    const sub = RNAppState.addEventListener('change', (state) => {
+      if (state === 'active') void refresh();
+    });
+    return () => sub.remove();
   }, [refresh]);
 
   const unlock = useCallback(async (pin: string) => {

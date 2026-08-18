@@ -24,6 +24,7 @@ import { versetDuJour } from '../../src/lib/versets';
 import { colors, fonts, radius } from '../../src/theme/colors';
 import { MascotTip } from '../../src/ui/Mascot';
 import { MASCOT_COPY, mascotStage } from '../../src/lib/mascot';
+import { ClockStamp } from '../../src/ui/ClockStamp';
 
 const FAV_ICONS = ['car-outline', 'restaurant-outline', 'phone-portrait-outline', 'cafe-outline'] as const;
 
@@ -59,6 +60,14 @@ export default function SoirScreen() {
 
   function addFavorite(label: string, value: number) {
     setDrafts((prev) => [...prev, { id: `${Date.now()}-${prev.length}`, label, amount: value }]);
+  }
+
+  function addCustom() {
+    const value = parseFcfaInput(extra);
+    if (!value) return;
+    addFavorite(note.trim() || 'Dépense', value);
+    setExtra('');
+    setNote('');
   }
 
   function removeDraft(id: string) {
@@ -115,6 +124,9 @@ export default function SoirScreen() {
               </View>
               <Eyebrow>Rendez-vous du soir</Eyebrow>
               <Title>C’est noté.</Title>
+              <View style={styles.clockPad}>
+                <ClockStamp variant="muted" compact />
+              </View>
               <Body>
                 {streak > 0
                   ? `${streak} soir${streak > 1 ? 's' : ''} d’affilée.`
@@ -147,6 +159,9 @@ export default function SoirScreen() {
                 </View>
                 <Eyebrow>Rendez-vous du soir</Eyebrow>
                 <Title>C’est noté.</Title>
+                <View style={styles.clockPad}>
+                  <ClockStamp variant="muted" compact />
+                </View>
                 <Body>
                   {streak > 0
                     ? `${streak} soir${streak > 1 ? 's' : ''} d’affilée.`
@@ -194,6 +209,9 @@ export default function SoirScreen() {
           <View style={{ flex: 1, minWidth: 0 }}>
             <Eyebrow>{timeLabel}</Eyebrow>
             <Title>Qu’as-tu dépensé aujourd’hui ?</Title>
+            <View style={styles.clockPad}>
+              <ClockStamp variant="muted" compact />
+            </View>
           </View>
           <Avatar
             name={settings.name || 'Toi'}
@@ -235,14 +253,25 @@ export default function SoirScreen() {
       ) : null}
 
       <Field
-        label={`Autre montant (${currencySuffix()})`}
+        label={`Montant libre (${currencySuffix()})`}
         value={extra}
         onChangeText={(v) => setExtra(sanitizeMoneyInput(v))}
         keyboardType={moneyKeyboard()}
-        placeholder="0"
-        hint="Optionnel. S’ajoute au total ci-dessus."
+        placeholder="3000"
       />
-      <Field label="Note (optionnel)" value={note} onChangeText={setNote} placeholder="Taxi, marché…" />
+      <Field
+        label="Nom de la dépense"
+        value={note}
+        onChangeText={setNote}
+        placeholder="Loisir, marché, cadeau…"
+      />
+      <Button
+        label="Ajouter cette dépense"
+        variant="soft"
+        icon="add"
+        onPress={addCustom}
+        disabled={!parseFcfaInput(extra)}
+      />
 
       {isCompact ? (
         <SoftCard>
@@ -304,6 +333,9 @@ export default function SoirScreen() {
         <View style={{ flex: 1, minWidth: 0 }}>
           <Eyebrow>Rituel · {timeLabel}</Eyebrow>
           <Title>Qu’as-tu dépensé aujourd’hui ?</Title>
+          <View style={styles.clockPad}>
+            <ClockStamp variant="muted" compact />
+          </View>
         </View>
         <Avatar
           name={settings.name || 'Toi'}
@@ -334,6 +366,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
     marginBottom: 8,
+  },
+  clockPad: {
+    marginTop: 8,
   },
   doneWrap: {
     width: '100%',

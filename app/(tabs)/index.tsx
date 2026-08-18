@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, Pressable } from 'react-native';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,6 +31,9 @@ import { CycleSwitch } from '../../src/ui/CycleSwitch';
 import { QuickMove } from '../../src/ui/QuickMove';
 import { MascotTip, useMascotCue } from '../../src/ui/Mascot';
 import { mascotStage, pickHomeCue } from '../../src/lib/mascot';
+import { formatClock } from '../../src/lib/clock';
+import { useNow } from '../../src/hooks/useNow';
+import { ClockStamp } from '../../src/ui/ClockStamp';
 
 function capitalizeFirst(raw?: string) {
   if (!raw) return '';
@@ -42,6 +45,8 @@ function capitalizeFirst(raw?: string) {
 export default function HomeScreen() {
   const router = useRouter();
   const { gutter, isCompact, isWide } = useLayout();
+  const now = useNow();
+  const clock = formatClock(now);
   const {
     settings,
     envelopes,
@@ -88,16 +93,19 @@ export default function HomeScreen() {
       eveningDone,
       settings,
     });
-  }, [settings, envelopes, cycle.status, goals, transactions, streak, eveningDone]);
+  }, [settings, envelopes, cycle.status, goals, transactions, streak, eveningDone, clock.timeLine]);
 
   const { visible: mascotCue, dismiss: dismissMascot } = useMascotCue(homeCue);
   const sproutStage = mascotStage(goals);
 
+  useEffect(() => {
+    void refresh();
+  }, [clock.dayKey, refresh]);
+
   if (!settings || !envelopes || !position || !kpiData) return null;
 
   const donLabel = DON_LABELS[settings.profil];
-  const hour = new Date().getHours();
-  const salut = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
+  const salut = clock.greeting;
   const firstName = capitalizeFirst(settings.name);
 
   const yearIncome = yearTransactions
@@ -363,6 +371,9 @@ export default function HomeScreen() {
             {salut}
             {firstName ? `, ${firstName}` : ''}.
           </Text>
+          <View style={styles.clockPad}>
+            <ClockStamp />
+          </View>
           <View style={styles.darkCardMobile}>
             <BotanicalField variant="dark" density="card" style={{ borderRadius: radius.xl }} />
             <View style={styles.cardForeground}>
@@ -406,7 +417,7 @@ export default function HomeScreen() {
       >
         <View style={styles.deskHead}>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={styles.desktopKicker}>Tableau de bord</Text>
+            <ClockStamp variant="muted" compact />
             <Text style={styles.helloDesktop}>
               {salut}
               {firstName ? `, ${firstName}` : ''}.
@@ -801,12 +812,15 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: colors.panel,
   },
-  desktopKicker: {
-    fontFamily: fonts.corpsSemi,
-    fontSize: 12,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    color: colors.or,
+  hello: {
+    fontFamily: fonts.display,
+    fontSize: 28,
+    lineHeight: 34,
+    color: colors.ink,
+    marginBottom: 6,
+  },
+  clockPad: {
+    marginBottom: 16,
   },
   topRow: {
     flexDirection: 'row',
@@ -814,13 +828,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 22,
     minHeight: TOUCH,
-  },
-  hello: {
-    fontFamily: fonts.display,
-    fontSize: 28,
-    lineHeight: 34,
-    color: colors.ink,
-    marginBottom: 18,
   },
   helloDesktop: {
     fontFamily: fonts.display,

@@ -29,6 +29,7 @@ import {
 } from '../../src/ui/primitives';
 import { AvatarPicker, type AvatarChoice } from '../../src/ui/AvatarPicker';
 import { colors, fonts, radius } from '../../src/theme/colors';
+import { ClockStamp } from '../../src/ui/ClockStamp';
 
 const MONTH_OPTS = [
   { day: 1, title: 'Le 1er', hint: 'Mois civil' },
@@ -398,6 +399,9 @@ export default function PlusScreen() {
         <View style={{ flex: 1, minWidth: 0 }}>
           <Eyebrow>Profil</Eyebrow>
           <Title style={{ marginBottom: 4 }}>{settings.name || 'Profil'}</Title>
+          <View style={{ marginBottom: 8 }}>
+            <ClockStamp variant="muted" compact />
+          </View>
           <Body>
             {PROFIL_LABELS[settings.profil]}
             {settings.profil !== 'aucun'
