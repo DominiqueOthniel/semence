@@ -7,7 +7,7 @@ import { planGoal } from '../src/lib/goals';
 import { currencySuffix, fcfa, moneyKeyboard, moneyToInput, parseFcfaInput, sanitizeMoneyInput } from '../src/lib/money';
 import { Body, Button, Field, Screen, Segment, SoftCard, Title } from '../src/ui/primitives';
 import { MascotTip } from '../src/ui/Mascot';
-import { mascotStage } from '../src/lib/mascot';
+import { MASCOT_COPY, mascotStage } from '../src/lib/mascot';
 import { colors } from '../src/theme/colors';
 
 const DURATION_OPTS = [
@@ -138,8 +138,8 @@ export default function ObjectifScreen() {
         <MascotTip
           mood="goal"
           stage={mascotStage(goals)}
-          title="Objectif atteint"
-          text="La semence pousse un peu. Garde le rythme, ou ouvre le suivant."
+          title={MASCOT_COPY.goal.title}
+          text={MASCOT_COPY.goal.text}
         />
       ) : null}
       <Body style={{ marginBottom: 18 }}>

@@ -155,7 +155,9 @@ export default function HomeScreen() {
             ? () => router.push('/(tabs)/plus')
             : mascotCue.mood === 'goal'
               ? () => router.push('/objectif')
-              : undefined
+              : mascotCue.mood === 'progress'
+                ? () => router.push('/(tabs)/soir')
+                : undefined
       }
     />
   ) : null;
@@ -374,6 +376,7 @@ export default function HomeScreen() {
           <View style={styles.clockPad}>
             <ClockStamp />
           </View>
+          <VersetCard profil={settings.profil} />
           <View style={styles.darkCardMobile}>
             <BotanicalField variant="dark" density="card" style={{ borderRadius: radius.xl }} />
             <View style={styles.cardForeground}>
@@ -402,7 +405,6 @@ export default function HomeScreen() {
           {creditCard}
           {kpiCard}
           {extraCards}
-          <VersetCard profil={settings.profil} />
         </View>
       </Screen>
     );
@@ -430,6 +432,8 @@ export default function HomeScreen() {
             photoUri={settings.avatarPhoto}
           />
         </View>
+
+        <VersetCard profil={settings.profil} />
 
         {cycleSwitch}
 
@@ -480,7 +484,6 @@ export default function HomeScreen() {
           <View style={styles.deskMidMain}>{chartCard}</View>
           <View style={styles.deskMidSide}>
             {insightsCard}
-            <VersetCard profil={settings.profil} />
           </View>
         </View>
 
@@ -523,8 +526,6 @@ export default function HomeScreen() {
             <Text style={[styles.railLine, { color: colors.rouge }]}>
               Je dois · {fcfa(position.iOwePeople + position.iOweCredits)}
             </Text>
-            <View style={styles.railDivider} />
-            <VersetCard profil={settings.profil} variant="amber" />
           </View>
         </View>
       </LinearGradient>

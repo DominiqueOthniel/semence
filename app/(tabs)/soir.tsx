@@ -107,6 +107,23 @@ export default function SoirScreen() {
     settings.eveningMinute,
   ).padStart(2, '0')}`;
 
+  const doneMascot =
+    streak >= 3 ? (
+      <MascotTip
+        mood="progress"
+        stage={mascotStage(goals)}
+        title={MASCOT_COPY.progress.title}
+        text={`${streak} soirs d’affilée. C’est ça, la constance.`}
+      />
+    ) : (
+      <MascotTip
+        mood="evening"
+        stage={mascotStage(goals)}
+        title={MASCOT_COPY.evening.title}
+        text="C’est noté. À demain, même heure."
+      />
+    );
+
   if (locked) {
     return (
       <Screen maxWidth={isCompact ? 'form' : 'wide'} scroll>
@@ -124,6 +141,7 @@ export default function SoirScreen() {
               </View>
               <Eyebrow>Rendez-vous du soir</Eyebrow>
               <Title>C’est noté.</Title>
+              {doneMascot}
               <View style={styles.clockPad}>
                 <ClockStamp variant="muted" compact />
               </View>
@@ -159,6 +177,7 @@ export default function SoirScreen() {
                 </View>
                 <Eyebrow>Rendez-vous du soir</Eyebrow>
                 <Title>C’est noté.</Title>
+                {doneMascot}
                 <View style={styles.clockPad}>
                   <ClockStamp variant="muted" compact />
                 </View>

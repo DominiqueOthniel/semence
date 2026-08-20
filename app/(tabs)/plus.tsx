@@ -12,6 +12,7 @@ import { CurrencyPicker, PhoneField } from '../../src/ui/LocaleFields';
 import { notify } from '../../src/lib/notify';
 import { buildMonthlyCsvReport, reportFileName } from '../../src/lib/report';
 import { shareMonthlyPdf } from '../../src/lib/shareReport';
+import { MASCOT_COPY, incomeToday, mascotStage, reachedGoal } from '../../src/lib/mascot';
 import { useLayout } from '../../src/hooks/useLayout';
 import {
   Avatar,
@@ -30,6 +31,7 @@ import {
 import { AvatarPicker, type AvatarChoice } from '../../src/ui/AvatarPicker';
 import { colors, fonts, radius } from '../../src/theme/colors';
 import { ClockStamp } from '../../src/ui/ClockStamp';
+import { MascotTip } from '../../src/ui/Mascot';
 
 const MONTH_OPTS = [
   { day: 1, title: 'Le 1er', hint: 'Mois civil' },
@@ -51,6 +53,9 @@ export default function PlusScreen() {
     resetProfile,
     issueRecoveryCode,
     yearTransactions,
+    accounts,
+    cycle,
+    transactions,
   } = useApp();
   const [editAvatar, setEditAvatar] = useState(false);
   const [draftAvatar, setDraftAvatar] = useState<AvatarChoice | null>(null);
@@ -95,34 +100,38 @@ export default function PlusScreen() {
   async function exportMonthlyPdf() {
     if (!settings) return;
     try {
-      const now = new Date();
       await shareMonthlyPdf({
         settings,
         transactions: yearTransactions,
-        year: now.getFullYear(),
-        month: now.getMonth(),
+        accounts,
+        debts,
+        credits,
+        goals,
+        cycle,
       });
     } catch (e) {
-      notify('Rapport PDF', String(e));
+      notify('Synthèse PDF', String(e));
     }
   }
 
   async function exportMonthlyReport() {
     if (!settings) return;
     try {
-      const now = new Date();
       const csv = buildMonthlyCsvReport({
         settings,
         transactions: yearTransactions,
-        year: now.getFullYear(),
-        month: now.getMonth(),
+        accounts,
+        debts,
+        credits,
+        goals,
+        cycle,
       });
       await Share.share({
         message: csv,
-        title: reportFileName(now.getFullYear(), now.getMonth()),
+        title: reportFileName(cycle.key, 'csv'),
       });
     } catch (e) {
-      notify('Rapport', String(e));
+      notify('Journal CSV', String(e));
     }
   }
 
@@ -255,6 +264,24 @@ export default function PlusScreen() {
       {isCompact ? monthPicker : null}
     </SoftCard>
   );
+
+  const reached = reachedGoal(goals);
+  const lastIncome = incomeToday(transactions);
+  const companion = reached ? (
+    <MascotTip
+      mood="goal"
+      stage={mascotStage(goals)}
+      title={MASCOT_COPY.goal.title}
+      text={MASCOT_COPY.goal.text}
+    />
+  ) : lastIncome ? (
+    <MascotTip
+      mood="income"
+      stage={mascotStage(goals)}
+      title={MASCOT_COPY.income.title}
+      text={MASCOT_COPY.income.text}
+    />
+  ) : null;
 
   const goalsCard = (
     <SoftCard style={!isCompact ? styles.deskPanel : undefined}>
@@ -485,6 +512,7 @@ export default function PlusScreen() {
 
       {isCompact ? (
         <>
+          {companion}
           {budgetCard}
 
           <SoftCard>
@@ -564,12 +592,12 @@ export default function PlusScreen() {
             </View>
             <Button label="Exporter une sauvegarde" icon="cloud-download-outline" onPress={backup} />
             <Button
-              label="Exporter le rapport du mois (PDF)"
+              label="Exporter la synthèse (PDF)"
               icon="document-outline"
               onPress={() => void exportMonthlyPdf()}
             />
             <Button
-              label="Exporter le rapport du mois (CSV)"
+              label="Exporter le journal (CSV)"
               variant="soft"
               icon="document-text-outline"
               onPress={exportMonthlyReport}
@@ -581,7 +609,10 @@ export default function PlusScreen() {
       ) : (
         <>
           <PageGrid cols={2} style={{ marginBottom: 8 }}>
-            <PageCol>{budgetCard}</PageCol>
+            <PageCol>
+              {companion}
+              {budgetCard}
+            </PageCol>
             <PageCol>
               <SoftCard>{monthPicker}</SoftCard>
             </PageCol>
@@ -684,12 +715,12 @@ export default function PlusScreen() {
                   onPress={backup}
                 />
                 <Button
-                  label="Exporter le rapport du mois (PDF)"
+                  label="Exporter la synthèse (PDF)"
                   icon="document-outline"
                   onPress={() => void exportMonthlyPdf()}
                 />
                 <Button
-                  label="Exporter le rapport du mois (CSV)"
+                  label="Exporter le journal (CSV)"
                   variant="soft"
                   icon="document-text-outline"
                   onPress={exportMonthlyReport}

@@ -8,7 +8,7 @@ import { DON_LABELS } from '../src/types';
 import { currencySuffix, fcfa, moneyKeyboard, parseFcfaInput, sanitizeMoneyInput } from '../src/lib/money';
 import { Body, Button, Chip, Field, Screen, Segment } from '../src/ui/primitives';
 import { MascotTip } from '../src/ui/Mascot';
-import { MASCOT_COPY, mascotStage } from '../src/lib/mascot';
+import { MASCOT_COPY, mascotStage, overEnvelopes } from '../src/lib/mascot';
 import { colors, fonts } from '../src/theme/colors';
 
 const FAV_ICONS = ['car-outline', 'restaurant-outline', 'phone-portrait-outline', 'cafe-outline'] as const;
@@ -18,7 +18,7 @@ export default function SaisieScreen() {
   const isIncome = mode === 'revenu';
   const navigation = useNavigation();
   const router = useRouter();
-  const { accounts, settings, favorites, goals, refresh, goToCurrentCycle } = useApp();
+  const { accounts, settings, favorites, goals, envelopes, refresh, goToCurrentCycle } = useApp();
 
   const [accountId, setAccountId] = useState<number | null>(null);
   const [amount, setAmount] = useState('');
@@ -76,6 +76,18 @@ export default function SaisieScreen() {
     { value: 'courant', label: 'Courant', icon: 'cart-outline' },
   ];
 
+  const over = envelopes
+    ? overEnvelopes([
+        ...(settings && settings.profil !== 'aucun'
+          ? [{ label: DON_LABELS[settings.profil] || 'Don', spent: envelopes.donSpent, budget: envelopes.donBudget }]
+          : []),
+        { label: 'Épargne', spent: envelopes.epargneSpent, budget: envelopes.epargneBudget },
+        { label: 'Semence', spent: envelopes.semenceSpent, budget: envelopes.semenceBudget },
+        { label: 'Courant', spent: envelopes.courantSpent, budget: envelopes.courantBudget },
+      ])
+    : [];
+  const overNames = over.map((e) => e.label).join(', ');
+
   return (
     <Screen maxWidth="form" scroll keyboard>
       {isIncome ? (
@@ -84,6 +96,17 @@ export default function SaisieScreen() {
           stage={mascotStage(goals)}
           title={MASCOT_COPY.income.title}
           text={MASCOT_COPY.income.text}
+        />
+      ) : over.length > 0 ? (
+        <MascotTip
+          mood="over"
+          stage={mascotStage(goals)}
+          title={MASCOT_COPY.over.title}
+          text={
+            over.length > 1
+              ? `${overNames} ont dépassé le cadre. Ce n’est pas un échec. Recadre les montants, et continue.`
+              : `${overNames} a dépassé le cadre. Ce n’est pas un échec. Recadre le montant, et continue.`
+          }
         />
       ) : null}
       {!isIncome && favorites.length > 0 ? (

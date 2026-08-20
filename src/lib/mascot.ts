@@ -14,11 +14,64 @@ export type MascotCue = {
   text: string;
 };
 
+export const MASCOT_COPY = {
+  welcome: {
+    title: 'Bienvenue',
+    text: 'Commençons par donner une direction à ton argent.',
+  },
+  income: {
+    title: 'Revenu reçu',
+    text: 'Répartis-le dans tes enveloppes, en montants. Le courant prend ce qui reste.',
+  },
+  goal: {
+    title: 'Objectif atteint',
+    text: 'La semence pousse un peu. Tu as tenu le rythme.',
+  },
+  over: {
+    title: 'On recadre, sans se juger',
+    text: 'Un cadre a dépassé. Ce n’est pas un échec. Recadre le montant, et continue.',
+  },
+  progress: {
+    title: 'Belle régularité',
+    text: 'Tu reviens. C’est ça, la constance.',
+  },
+  evening: {
+    title: 'Rendez-vous du soir',
+    text: 'Ton petit compagnon du quotidien. Deux minutes : on note, on sème demain.',
+  },
+} as const;
+
 export function mascotStage(goals: SavingsGoal[]): MascotStage {
   const reached = goals.filter((g) => g.target > 0 && g.current >= g.target).length;
   if (reached >= 3) return 2;
   if (reached >= 1) return 1;
   return 0;
+}
+
+export function incomeToday(transactions: Transaction[], day = todayISO()): Transaction | null {
+  const last = [...transactions].reverse().find((t) => t.type === 'revenu' && t.date.slice(0, 10) === day);
+  return last ?? null;
+}
+
+export function reachedGoal(goals: SavingsGoal[]): SavingsGoal | null {
+  return goals.find((g) => g.target > 0 && g.current >= g.target) ?? null;
+}
+
+export function overEnvelopes(envelopes: { label: string; spent: number; budget: number }[]) {
+  return envelopes.filter((e) => e.budget > 0 && e.spent > e.budget);
+}
+
+function overCue(names: string[]): MascotCue {
+  const list = names.join(', ');
+  return {
+    id: `over:${todayISO()}:${list}`,
+    mood: 'over',
+    title: MASCOT_COPY.over.title,
+    text:
+      names.length > 1
+        ? `${list} ont dépassé le cadre. Ce n’est pas un échec. Recadre les montants, et continue.`
+        : `${list} a dépassé le cadre. Ce n’est pas un échec. Recadre le montant, et continue.`,
+  };
 }
 
 export function pickHomeCue(input: {
@@ -32,39 +85,26 @@ export function pickHomeCue(input: {
 }): MascotCue | null {
   if (!input.live) return null;
 
-  const over = input.envelopes.filter((e) => e.budget > 0 && e.spent > e.budget);
-  if (over.length > 0) {
-    const names = over.map((e) => e.label).join(', ');
-    return {
-      id: `over:${names}`,
-      mood: 'over',
-      title: 'On ajuste, sans se juger',
-      text:
-        over.length > 1
-          ? `${names} ont dépassé le cadre. Ce n’est pas un échec. Recadre les montants, et continue.`
-          : `${names} a dépassé le cadre. Ce n’est pas un échec. Recadre le montant, et continue.`,
-    };
-  }
+  const over = overEnvelopes(input.envelopes);
+  if (over.length > 0) return overCue(over.map((e) => e.label));
 
-  const done = input.goals.find((g) => g.target > 0 && g.current >= g.target);
+  const done = reachedGoal(input.goals);
   if (done) {
     return {
       id: `goal:${done.id}`,
       mood: 'goal',
-      title: 'Objectif atteint',
+      title: MASCOT_COPY.goal.title,
       text: `${done.name} est là. La semence pousse un peu.`,
     };
   }
 
-  const lastMove = [...input.transactions]
-    .reverse()
-    .find((t) => t.type === 'revenu' || t.type === 'depense');
-  if (lastMove?.type === 'revenu' && lastMove.date.slice(0, 10) === todayISO()) {
+  const lastIncome = incomeToday(input.transactions);
+  if (lastIncome) {
     return {
-      id: `income:${lastMove.id}`,
+      id: `income:${lastIncome.id}`,
       mood: 'income',
-      title: 'Un revenu vient d’arriver',
-      text: 'Répartis-le dans tes enveloppes, en montants. Le courant prendra ce qui reste.',
+      title: MASCOT_COPY.income.title,
+      text: MASCOT_COPY.income.text,
     };
   }
 
@@ -72,7 +112,7 @@ export function pickHomeCue(input: {
     return {
       id: `progress:${input.streak}`,
       mood: 'progress',
-      title: 'Tu reviens',
+      title: MASCOT_COPY.progress.title,
       text: `${input.streak} soirs d’affilée. C’est ça, la constance.`,
     };
   }
@@ -82,28 +122,22 @@ export function pickHomeCue(input: {
     return {
       id: `evening:${todayISO()}`,
       mood: 'evening',
-      title: 'Rendez-vous du soir',
-      text: 'Deux minutes. On note la journée, et on sème demain.',
+      title: MASCOT_COPY.evening.title,
+      text: MASCOT_COPY.evening.text,
+    };
+  }
+
+  if (input.transactions.length === 0) {
+    return {
+      id: 'welcome:home',
+      mood: 'welcome',
+      title: MASCOT_COPY.welcome.title,
+      text: MASCOT_COPY.welcome.text,
     };
   }
 
   return null;
 }
-
-export const MASCOT_COPY = {
-  welcome: {
-    title: 'Bienvenue',
-    text: 'Commençons par donner une direction à ton argent.',
-  },
-  income: {
-    title: 'Répartir ce revenu',
-    text: 'Indique les montants pour chaque enveloppe. Pas de calcul de pourcentage.',
-  },
-  evening: {
-    title: 'On clôture la journée',
-    text: 'Un petit compagnon du soir : tu notes, tu valides, tu te libères.',
-  },
-} as const;
 
 export async function loadMascotSeen(): Promise<string[]> {
   try {

@@ -32,11 +32,12 @@ function Sprout({
   mood: MascotMood;
   stage: MascotStage;
 }) {
+  const grown = mood === 'goal' ? Math.max(stage, 1) : mood === 'welcome' ? 0 : stage;
   const gold = mood === 'over' ? colors.ambre : colors.ambreVif;
   const leaf = mood === 'over' ? '#6F8A6A' : colors.orVif;
   const pot = mood === 'evening' ? colors.panelSoft : colors.panel;
   const droop = mood === 'over' ? 6 : 0;
-  const lift = mood === 'goal' || mood === 'progress' ? -3 : 0;
+  const lift = mood === 'goal' || mood === 'progress' ? -4 : 0;
 
   return (
     <Svg width={size} height={size} viewBox="0 0 64 72" accessibilityElementsHidden>
@@ -46,7 +47,7 @@ function Sprout({
         fill={pot}
       />
       <Path d="M22 52 C24 48, 40 48, 42 52 L40 58 L24 58 Z" fill={colors.orWash} />
-      {stage === 0 ? (
+      {grown === 0 ? (
         <Ellipse cx="32" cy={44 + lift} rx="9" ry="11" fill={gold} />
       ) : (
         <>
@@ -65,7 +66,7 @@ function Sprout({
             d={`M32 ${28 + lift} C44 ${22 + lift + droop}, 50 ${16 + lift}, 44 ${11 + lift} C36 ${16 + lift}, 32 ${22 + lift}, 32 ${28 + lift} Z`}
             fill={colors.or}
           />
-          {stage >= 2 ? (
+          {grown >= 2 ? (
             <Path
               d={`M32 ${22 + lift} C26 ${8 + lift}, 38 ${4 + lift}, 40 ${12 + lift} C36 ${12 + lift}, 33 ${16 + lift}, 32 ${22 + lift} Z`}
               fill={gold}
@@ -73,8 +74,15 @@ function Sprout({
           ) : null}
         </>
       )}
+      {mood === 'income' ? <Circle cx="50" cy="46" r="4.2" fill={gold} /> : null}
+      {mood === 'evening' ? (
+        <Path d="M50 16 C46 18, 44 24, 48 28 C54 26, 56 20, 50 16 Z" fill={gold} />
+      ) : null}
       {mood === 'progress' || mood === 'goal' ? (
-        <Circle cx="48" cy="14" r="3.2" fill={gold} />
+        <>
+          <Circle cx="48" cy="12" r="3.2" fill={gold} />
+          <Circle cx="54" cy="20" r="2" fill={leaf} />
+        </>
       ) : null}
     </Svg>
   );
