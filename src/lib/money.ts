@@ -1,4 +1,4 @@
-import { currencyMeta, normalizeCurrency, type CurrencyCode } from './locale';
+import { currencyMeta, normalizeCurrency, UNITS_PER_EUR, type CurrencyCode } from './locale';
 
 let activeCurrency: CurrencyCode = 'XAF';
 
@@ -102,10 +102,10 @@ export function convertAmount(amount: number, from: string | null | undefined, t
   const src = normalizeCurrency(from);
   const dst = normalizeCurrency(to);
   if (src === dst) return roundMoney(amount, dst);
-  const a = currencyMeta(src).sampleIncome;
-  const b = currencyMeta(dst).sampleIncome;
-  if (!a) return roundMoney(amount, dst);
-  return roundMoney((amount * b) / a, dst);
+  const srcPerEur = UNITS_PER_EUR[src];
+  const dstPerEur = UNITS_PER_EUR[dst];
+  if (!srcPerEur || !dstPerEur) return roundMoney(amount, dst);
+  return roundMoney((amount * dstPerEur) / srcPerEur, dst);
 }
 
 export interface EnvelopeSplit {

@@ -15,7 +15,7 @@ import type {
 import { DEFAULT_RATES } from '../types';
 import { nowISO, todayISO, convertAmount } from '../lib/money';
 import { cycleAtOffset, isoFromDate } from '../lib/cycle';
-import { DEFAULT_CURRENCY, DEFAULT_PHONE_CODE, favoritesForCurrency, normalizeCurrency, normalizePhoneCode } from '../lib/locale';
+import { DEFAULT_CURRENCY, DEFAULT_PHONE_CODE, favoritesForCurrency, normalizeCurrency, normalizePhoneCode, type CurrencyCode } from '../lib/locale';
 import { generateRecoveryCode, normalizeRecovery } from '../lib/recovery';
 
 const KEY = 'semence.v1';
@@ -190,7 +190,7 @@ export async function updateSettings(patch: Partial<{
   return { ...store.settings };
 }
 
-function sameFavoriteSet(current: FavoriteAmount[], currency: string) {
+function sameFavoriteSet(current: FavoriteAmount[], currency: CurrencyCode) {
   const expected = defaultFavorites(currency);
   if (current.length !== expected.length) return false;
   return expected.every((item, i) => current[i]?.label === item.label && current[i]?.amount === item.amount);

@@ -207,6 +207,25 @@ export const PHONE_CODES: {
 export const DEFAULT_CURRENCY: CurrencyCode = 'XAF';
 export const DEFAULT_PHONE_CODE = '237';
 
+/**
+ * Unités de cette devise pour 1 euro.
+ * XAF / XOF : parité officielle. Autres : référence hors ligne, août 2026.
+ */
+export const UNITS_PER_EUR: Record<CurrencyCode, number> = {
+  EUR: 1,
+  XAF: 655.957,
+  XOF: 655.957,
+  USD: 1.1605,
+  GBP: 0.8561,
+  CAD: 1.6098,
+  CHF: 0.9402,
+  NGN: 1606.76,
+  GHS: 12.6607,
+  MAD: 10.7628,
+  CDF: 3340,
+  KES: 149.91,
+};
+
 export function isCurrency(value: string): value is CurrencyCode {
   return CURRENCIES.some((c) => c.code === value);
 }

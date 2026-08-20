@@ -474,6 +474,10 @@ export default function PlusScreen() {
             })();
           }}
         />
+        <Body style={{ marginTop: 8 }}>
+          Les montants déjà notés sont convertis. Le FCFA suit la parité 655,957 pour 1 €. Les autres devises
+          utilisent un taux de référence hors ligne.
+        </Body>
         <PhoneField
           code={settings.phoneCode || '237'}
           number={phoneDraft}
