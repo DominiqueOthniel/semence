@@ -163,6 +163,9 @@ const styles = StyleSheet.create({
     paddingLeft: 2,
   },
   taglineOnDark: {
-    color: colors.ambre,
+    color: 'rgba(247, 238, 220, 0.92)',
+    fontSize: 11,
+    letterSpacing: 1.6,
+    lineHeight: 17,
   },
 });

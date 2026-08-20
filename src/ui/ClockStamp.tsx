@@ -13,14 +13,22 @@ export function ClockStamp({
   stacked?: boolean;
 }) {
   const stamp = formatClock(useNow());
-  const color =
-    variant === 'onDark'
-      ? 'rgba(255,255,255,0.78)'
-      : variant === 'gold'
-        ? colors.ambre
+  const dateColor =
+    variant === 'gold'
+      ? 'rgba(255,255,255,0.92)'
+      : variant === 'onDark'
+        ? 'rgba(255,255,255,0.86)'
         : variant === 'muted'
           ? colors.ink3
           : colors.ink2;
+  const timeColor =
+    variant === 'gold'
+      ? colors.ambreVif
+      : variant === 'onDark'
+        ? 'rgba(255,255,255,0.92)'
+        : variant === 'muted'
+          ? colors.ink3
+          : colors.ink;
 
   return (
     <View
@@ -28,8 +36,12 @@ export function ClockStamp({
       accessibilityLabel={`${stamp.dateLine}, ${stamp.timeLine}`}
       style={[styles.wrap, stacked && styles.wrapStacked]}
     >
-      <Text style={[styles.date, compact && styles.dateCompact, { color }]}>{stamp.dateLine}</Text>
-      <Text style={[styles.time, compact && styles.timeCompact, { color }]}>{stamp.timeLine}</Text>
+      <Text style={[styles.date, compact && styles.dateCompact, { color: dateColor }]}>
+        {stamp.dateLine}
+      </Text>
+      <Text style={[styles.time, compact && styles.timeCompact, stacked && styles.timeStacked, { color: timeColor }]}>
+        {stamp.timeLine}
+      </Text>
     </View>
   );
 }
@@ -59,6 +71,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   timeCompact: {
-    fontSize: 14,
+    fontSize: 15,
+  },
+  timeStacked: {
+    fontSize: 22,
+    letterSpacing: 0.8,
+    marginTop: 2,
   },
 });

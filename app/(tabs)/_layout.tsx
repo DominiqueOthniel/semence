@@ -61,7 +61,7 @@ function TabIcon({
   onDark?: boolean;
 }) {
   const active = onDark ? colors.ambre : colors.or;
-  const idle = onDark ? 'rgba(255,255,255,0.55)' : colors.ink3;
+  const idle = onDark ? 'rgba(255,255,255,0.86)' : colors.ink3;
   return <Ionicons name={focused ? name : nameOutline} size={22} color={focused ? active : idle} />;
 }
 
@@ -95,7 +95,7 @@ function DesktopShell() {
           },
         ]}
       >
-        <BotanicalField variant="dark" density="panel" />
+        <BotanicalField variant="dark" density="panel" style={styles.sideMotif} />
         <BrandLockup
           height={132}
           tagline={'Faire fructifier\nvos finances'}
@@ -128,24 +128,25 @@ function DesktopShell() {
             </Pressable>
           );
         })}
-        <View style={{ flex: 1 }} />
-        <View style={styles.sideClock}>
-          <ClockStamp variant="gold" compact stacked />
-        </View>
-        <View style={styles.sideSecure}>
-          <Ionicons name="shield-checkmark-outline" size={14} color={colors.ambre} />
-          <Text style={styles.sideSecureText}>Sécurisé & confidentiel</Text>
-        </View>
-        <View style={styles.sideProfile}>
-          <Avatar
-            name={settings?.name || 'Toi'}
-            size={36}
-            preset={settings?.avatarPreset}
-            photoUri={settings?.avatarPhoto}
-          />
-          <Text style={styles.sideProfileName} numberOfLines={1}>
-            {settings?.name || 'Profil'}
-          </Text>
+        <View style={styles.sideFoot}>
+          <View style={styles.sideClock}>
+            <ClockStamp variant="gold" compact stacked />
+          </View>
+          <View style={styles.sideSecure}>
+            <Ionicons name="shield-checkmark-outline" size={14} color={colors.ambreVif} />
+            <Text style={styles.sideSecureText}>Sécurisé & confidentiel</Text>
+          </View>
+          <View style={styles.sideProfile}>
+            <Avatar
+              name={settings?.name || 'Toi'}
+              size={36}
+              preset={settings?.avatarPreset}
+              photoUri={settings?.avatarPhoto}
+            />
+            <Text style={styles.sideProfileName} numberOfLines={1}>
+              {settings?.name || 'Profil'}
+            </Text>
+          </View>
         </View>
       </View>
       <View style={styles.desktopMain}>
@@ -250,6 +251,9 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
+  sideMotif: {
+    opacity: 0.22,
+  },
   desktopMain: {
     flex: 1,
     minWidth: 0,
@@ -272,6 +276,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     borderWidth: 1,
     borderColor: 'transparent',
+    backgroundColor: 'rgba(15, 36, 28, 0.28)',
     zIndex: 1,
   },
   sideItemOn: {
@@ -284,31 +289,39 @@ const styles = StyleSheet.create({
   },
   sideLabel: {
     marginLeft: 10,
-    fontFamily: fonts.corpsMed,
+    fontFamily: fonts.corpsSemi,
     fontSize: 15,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.92)',
   },
   sideLabelOn: {
     fontFamily: fonts.corpsBold,
     color: colors.white,
   },
+  sideFoot: {
+    marginTop: 'auto',
+    zIndex: 1,
+    paddingTop: 12,
+    paddingHorizontal: 4,
+    paddingBottom: 2,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(15, 36, 28, 0.72)',
+  },
   sideClock: {
     paddingHorizontal: 12,
-    marginBottom: 16,
-    zIndex: 1,
+    paddingTop: 12,
+    marginBottom: 10,
   },
   sideSecure: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 12,
-    marginBottom: 14,
-    zIndex: 1,
+    marginBottom: 12,
   },
   sideSecureText: {
-    fontFamily: fonts.corps,
+    fontFamily: fonts.corpsMed,
     fontSize: 12,
-    color: colors.inkOnDark,
+    color: 'rgba(255,255,255,0.82)',
   },
   sideProfile: {
     flexDirection: 'row',
